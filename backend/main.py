@@ -545,9 +545,3 @@ app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 @app.get("/api/health")
 async def health_check():
     return {"status": "online", "message": "SayMe API is running"}
-
-# Use environment variable for port if available
-PORT = os.getenv("PORT", "10000")
-
-# Dodaj host
-HOST = os.getenv("HOST", "0.0.0.0")
