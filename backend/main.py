@@ -538,13 +538,17 @@ async def startup_event():
 async def root():
     return {"status": "online", "message": "SayMe API is running"}
 
+# Ažurirajte putanje za statičke datoteke
+current_dir = os.path.dirname(os.path.realpath(__file__))
+frontend_dir = os.path.join(os.path.dirname(current_dir), 'frontend')
+
 # Montiraj frontend direktorij kao statički
-app.mount("/assets", StaticFiles(directory="../frontend/assets"), name="assets")
-app.mount("/", StaticFiles(directory="../frontend"), name="frontend")
+app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dir, "assets")), name="assets")
+app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
 
 @app.get("/")
 async def read_index():
-    return FileResponse("../frontend/index.html")
+    return FileResponse(os.path.join(frontend_dir, "index.html"))
 
 # Use environment variable for port if available
 PORT = os.getenv("PORT", 8000)
