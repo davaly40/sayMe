@@ -66,15 +66,11 @@ git push -u origin main
 2. Kliknite "New +" i odaberite "Web Service"
 3. Povežite svoj GitHub repository
 4. Postavite sljedeće:
-   - Name: `sayme` (ili željeno ime)
+   - Name: `sayme-backend` (ili željeno ime)
    - Environment: `Python`
    - Build Command: `pip install -r backend/requirements.txt`
    - Start Command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Dodajte Environment Variables:
-   - `WEATHER_API_KEY`: Vaš OpenWeatherMap API ključ
-6. Kliknite "Create Web Service"
-
-Vaša aplikacija će biti dostupna na `https://sayme.onrender.com` (ili URL koji vam Render dodijeli).
+5. Kliknite "Create Web Service"
 
 ### Frontend Deployment
 
