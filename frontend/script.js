@@ -137,24 +137,14 @@ async function speak(text) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'hr-HR';
     
-    // Optimizirani parametri za hrvatski jezik
-    utterance.pitch = 1.0;     // Neutralniji pitch
-    utterance.rate = 1.0;      // Normalna brzina
-    utterance.volume = 1.0;    // Puna glasnoća
-    
-    // Prilagodba intonacije bez usporavanja
-    if (text.includes('?')) {
-        utterance.pitch = 1.1;  // Suptilnija promjena za pitanja
-    } else if (text.includes('!')) {
-        utterance.pitch = 1.15; // Suptilnija promjena za uskličnike
-    }
-
-    // Prirodnije pauze
-    text = text.replace(/([,.!?])/g, '$1 ');
-    utterance.text = text;
+    // Optimizirani parametri
+    utterance.pitch = 1.0;
+    utterance.rate = 1.0;
+    utterance.volume = 1.0;
     
     try {
-        if (!visualizer.isInitialized) {
+        if (!visualizer) {
+            visualizer = new BlobVisualizer('visualizer');
             await visualizer.init();
         }
 
@@ -162,20 +152,17 @@ async function speak(text) {
         visualizer.startVisualization();
 
         return new Promise((resolve) => {
-            let wordStart = 0;
+            let wordBoundary = 0;
             
             utterance.onboundary = (event) => {
                 if (event.name === 'word') {
-                    const wordLength = event.charIndex - wordStart;
-                    wordStart = event.charIndex;
-                    
-                    // Trigger circle shrink for each word
-                    visualizer.onWordStart(wordLength);
-                    
-                    // Schedule circle growth after estimated word duration
-                    setTimeout(() => {
-                        visualizer.onSilence();
-                    }, wordLength * 50); // Rough estimate of word duration
+                    // Animiraj vizualizator za svaku riječ
+                    const circle = document.querySelector('.circle-pulse');
+                    if (circle) {
+                        circle.style.animation = 'none';
+                        circle.offsetHeight; // Trigger reflow
+                        circle.style.animation = 'pulsate 2s ease-out infinite';
+                    }
                 }
             };
             

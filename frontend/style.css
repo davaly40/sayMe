@@ -349,6 +349,7 @@ button:hover {
 .mic-button {
     width: 64px;
     height: 64px;
+    border-radius: 50%;  /* Dodano da osiguramo kružni oblik */
     background: rgba(0, 255, 149, 0.1);
     border: 2px solid rgba(0, 255, 149, 0.5);
     padding: 0;
@@ -456,6 +457,7 @@ button:hover {
 
 .audio-circle.speaking .circle-pulse {
     animation: pulsate 2s ease-out infinite;
+    opacity: 0.5;  /* Povećana vidljivost */
 }
 
 .wave-container {
@@ -491,16 +493,16 @@ button:hover {
 
 @keyframes pulsate {
     0% {
-        transform: translate(-50%, -50%) scale(0.95);
-        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(0.9);
+        opacity: 0.6;
     }
     50% {
-        transform: translate(-50%, -50%) scale(1.05);
+        transform: translate(-50%, -50%) scale(1.1);
         opacity: 0.2;
     }
     100% {
-        transform: translate(-50%, -50%) scale(0.95);
-        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(0.9);
+        opacity: 0.6;
     }
 }
 
