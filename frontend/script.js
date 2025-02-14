@@ -36,31 +36,75 @@ function formatResponse(text) {
 
 // Add speech recognition initialization
 function initializeSpeechRecognition() {
-    // Prva provjera za različite implementacije Speech Recognition API-ja
-    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // Proširena detekcija Speech Recognition API-ja
+    window.SpeechRecognition = window.SpeechRecognition ||
+                              window.webkitSpeechRecognition ||
+                              window.mozSpeechRecognition ||
+                              window.msSpeechRecognition;
+    
+    const isSamsung = /Samsung|SM-/i.test(navigator.userAgent);
+    const isChrome = /Chrome/.test(navigator.userAgent);
+    const chromeVersion = parseInt((navigator.userAgent.match(/Chrome\/([0-9]+)/) || [])[1] || '0');
     
     if (!window.SpeechRecognition) {
-        alert('Vaš uređaj ne podržava prepoznavanje govora. Pokušajte koristiti noviju verziju Chrome browsera.');
+        alert('Vaš uređaj ne podržava prepoznavanje govora. Molimo koristite Chrome preglednik.');
         return;
     }
 
     try {
         recognition = new window.SpeechRecognition();
+        
+        // Posebne postavke za Samsung uređaje
+        if (isSamsung) {
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            
+            // Dodatna provjera za Samsung uređaje
+            if (!isChrome || chromeVersion < 95) {
+                alert('Molimo koristite najnoviju verziju Chrome preglednika na Samsung uređajima.');
+            }
+        } else {
+            recognition.continuous = false;
+            recognition.interimResults = false;
+        }
+        
         recognition.lang = 'hr-HR';
-        recognition.continuous = false;
-        recognition.interimResults = false;
 
-        // Dodano rukovanje greškama
         recognition.onerror = function(event) {
             console.error('Speech recognition error:', event.error);
             if (event.error === 'not-allowed') {
-                alert('Molimo dozvolite pristup mikrofonu za korištenje aplikacije.');
+                alert('Molimo dozvolite pristup mikrofonu i osvježite stranicu.');
             } else if (event.error === 'network') {
                 alert('Provjerite internetsku vezu.');
+            } else if (event.error === 'no-speech') {
+                console.log('No speech detected');
+                // Tiho ponovno pokretanje na Samsung uređajima
+                if (isSamsung) {
+                    setTimeout(() => {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Restart error:', e);
+                        }
+                    }, 100);
+                }
             } else {
-                alert('Došlo je do greške. Pokušajte osvježiti stranicu ili koristiti Chrome browser.');
+                alert('Greška u prepoznavanju govora. Pokušajte ponovno.');
             }
             updateState(null);
+        };
+
+        // Posebno rukovanje za Samsung uređaje
+        recognition.onend = () => {
+            updateState(null);
+            if (isSamsung && recognition.isListening) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.error('Restart error:', e);
+                }
+            }
         };
 
         recognition.onstart = () => {
@@ -68,11 +112,6 @@ function initializeSpeechRecognition() {
             console.log('Speech recognition started');
         };
 
-        recognition.onend = () => {
-            updateState(null);
-            console.log('Speech recognition ended');
-        };
-        
         recognition.onresult = function(event) {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
@@ -247,8 +286,44 @@ function loadVoices() {
     });
 }
 
+// Dodaj novu funkciju za provjeru i pripremu uređaja
+async function prepareDevice() {
+    const isSamsung = /Samsung|SM-/i.test(navigator.userAgent);
+    const androidVersion = parseInt((navigator.userAgent.match(/Android ([0-9]+)/) || [])[1] || '0');
+    
+    if (isSamsung) {
+        // Provjeri verziju Android System WebView
+        try {
+            const webviewInfo = await checkWebViewVersion();
+            if (webviewInfo.needsUpdate) {
+                alert('Molimo ažurirajte Android System WebView putem Google Play trgovine za bolje funkcioniranje aplikacije.');
+            }
+        } catch (e) {
+            console.error('WebView check failed:', e);
+        }
+        
+        // Posebne preporuke za Samsung uređaje
+        if (androidVersion >= 12) {
+            console.log('Modern Samsung device detected');
+            // Dodatne optimizacije za novije uređaje
+        } else {
+            alert('Za najbolje iskustvo, preporučujemo korištenje Chrome preglednika na vašem Samsung uređaju.');
+        }
+    }
+}
+
+// Dodaj funkciju za provjeru WebView verzije
+async function checkWebViewVersion() {
+    const webviewVersion = (navigator.userAgent.match(/Chrome\/([0-9]+)/) || [])[1] || '0';
+    return {
+        version: parseInt(webviewVersion),
+        needsUpdate: parseInt(webviewVersion) < 95
+    };
+}
+
 // Update window.onload to handle AudioContext properly
 window.onload = async function() {
+    await prepareDevice();
     checkDeviceCompatibility();
     
     // Register service worker for PWA support
