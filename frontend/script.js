@@ -214,6 +214,16 @@ function loadVoices() {
 
 // Update window.onload to handle AudioContext properly
 window.onload = async function() {
+    // Register service worker for PWA support
+    if ('serviceWorker' in navigator) {
+        try {
+            await navigator.serviceWorker.register('/service-worker.js');
+            console.log('Service Worker registered successfully');
+        } catch (error) {
+            console.error('Service Worker registration failed:', error);
+        }
+    }
+
     if (!('webkitSpeechRecognition' in window)) {
         alert('Vaš preglednik ne podržava prepoznavanje govora.');
         document.getElementById('startButton').disabled = true;

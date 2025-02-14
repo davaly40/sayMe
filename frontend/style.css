@@ -26,6 +26,7 @@ body {
     background: transparent;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     z-index: 100;
 }
 
@@ -34,7 +35,7 @@ body {
     width: auto;
     margin-left: 2rem;
     opacity: 0.8;
-    transition: opacity 0.3s;
+    transition: all 0.3s;
 }
 
 .header-logo:hover {
@@ -348,7 +349,6 @@ button:hover {
 .mic-button {
     width: 64px;
     height: 64px;
-    border-radius: 50%;
     background: rgba(0, 255, 149, 0.1);
     border: 2px solid rgba(0, 255, 149, 0.5);
     padding: 0;
@@ -670,11 +670,11 @@ button:hover {
 
 .footer {
     width: 100%;
-    padding: 1rem;
-    background: rgba(15, 15, 15, 0.8);
+    padding: 1.5rem;
+    background: rgba(15, 15, 15, 0.95);
     backdrop-filter: blur(10px);
     text-align: center;
-    color: var(--text-secondary);
+    color: var(--text);
     font-size: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 100;
@@ -692,18 +692,28 @@ button:hover {
     }
 
     .mic-button {
-        width: 56px;
-        height: 56px;
+        width: 72px;
+        height: 72px;
+    }
+
+    .mic-button img {
+        width: 28px;
+        height: 28px;
+    }
+
+    .header {
+        justify-content: center;
     }
 
     .header-logo {
-        height: 36px;
-        margin-left: 1rem;
+        height: 42px;
+        margin: 0;
     }
     
     .footer {
         padding: 1.5rem;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
+        background: rgba(15, 15, 15, 0.98);
     }
 }
 
@@ -720,12 +730,23 @@ button:hover {
     }
 
     .header-logo {
+        height: 38px;
+    }
+
+    .mic-button {
+        width: 80px;
+        height: 80px;
+    }
+
+    .mic-button img {
+        width: 32px;
         height: 32px;
-        margin-left: 0.5rem;
     }
     
     .footer {
-        padding: 1rem;
+        padding: 1.25rem;
+        font-size: 0.9rem;
+        background: rgba(15, 15, 15, 1);
     }
 }
 
