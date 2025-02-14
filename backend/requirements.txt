@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+beautifulsoup4==4.12.2
+requests==2.31.0
+python-multipart==0.0.5
+aiofiles==23.2.1
+pyttsx3==2.90
+SpeechRecognition==3.8.1
+# Uklanjamo eksplicitnu verziju websockets jer je uvicorn već ima kao dependency
