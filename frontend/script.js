@@ -84,6 +84,18 @@ async function initializeWebSocket() {
         };
         
         socket.onmessage = async function(event) {
+            try {
+                // Pokušaj parsirati kao JSON
+                const data = JSON.parse(event.data);
+                if (data.type === 'openUrl') {
+                    handleUrlOpen(data);
+                    appendMessage(data.message, false);
+                    return;
+                }
+            } catch (e) {
+                // Ako nije JSON, tretiraj kao običan tekst
+                appendMessage(event.data, false);
+            }
             const response = formatResponse(event.data);
             appendMessage(response, false);
             await speak(response);
@@ -101,6 +113,23 @@ async function initializeWebSocket() {
     } catch (error) {
         console.error('Error initializing WebSocket:', error);
         setTimeout(initializeWebSocket, 5000);
+    }
+}
+
+function handleUrlOpen(data) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile && data.mobileUrl) {
+        // Pokušaj otvoriti mobilnu aplikaciju
+        window.location.href = data.mobileUrl;
+        
+        // Ako mobilna aplikacija nije instalirana, otvori web verziju nakon 1 sekunde
+        setTimeout(() => {
+            window.open(data.url, '_blank');
+        }, 1000);
+    } else {
+        // Na desktopu ili ako nema mobilne aplikacije, otvori u novom tabu
+        window.open(data.url, '_blank');
     }
 }
 

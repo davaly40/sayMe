@@ -8,4 +8,4 @@ jinja2==3.1.2
 gunicorn==21.2.0
 pyttsx3==2.90
 SpeechRecognition==3.8.1
-# Uklanjamo eksplicitnu verziju websockets jer je uvicorn već ima kao dependency
+websockets==12.0

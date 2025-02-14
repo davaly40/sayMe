@@ -237,6 +237,16 @@ WEBSITES = {
     "karte": "https://google.com/maps",
 }
 
+MOBILE_APPS = {
+    "youtube": "vnd.youtube://",
+    "facebook": "fb://",
+    "instagram": "instagram://",
+    "twitter": "twitter://",
+    "maps": "comgooglemaps://",
+    "spotify": "spotify://",
+    "gmail": "googlegmail://"
+}
+
 NEWS_PORTALS = {
     "index": "https://index.hr",
     "jutarnji": "https://jutarnji.hr",
@@ -340,25 +350,33 @@ def open_website(name: str) -> str:
     
     # Provjeri je li navigacija
     if any(term in name for term in ["navigacija", "maps", "karte"]):
-        webbrowser.open(WEBSITES["maps"])
-        return "Otvaram Google Maps"
+        url = WEBSITES["maps"]
+        mobile_url = MOBILE_APPS["maps"]
+        return json.dumps({
+            "type": "openUrl",
+            "url": url,
+            "mobileUrl": mobile_url,
+            "message": "Otvaram Google Maps"
+        })
     
-    # Prvo provjeri portale vijesti
+    # Provjeri portale vijesti
     if "vijesti" in name or "portal" in name:
         return f"Koje vijesti želite otvoriti? Dostupni su: {', '.join(NEWS_PORTALS.keys())}"
     
     # Provjeri je li naveden neki portal vijesti
     for portal_name, url in NEWS_PORTALS.items():
         if portal_name in name:
-            webbrowser.open(url)
-            return f"Otvaram portal {portal_name.upper()}"
+            return json.dumps({
+                "type": "openUrl",
+                "url": url,
+                "message": f"Otvaram portal {portal_name.upper()}"
+            })
     
     # Provjeri ostale web stranice
     for site_name, url in WEBSITES.items():
         if site_name in name:
-            webbrowser.open(url)
-            # Koristimo dictionary za posebne nazive
-            special_names = {
+            mobile_url = MOBILE_APPS.get(site_name, "")
+            display_name = {
                 "youtube": "YouTube",
                 "chatgpt": "ChatGPT",
                 "facebook": "Facebook",
@@ -368,9 +386,14 @@ def open_website(name: str) -> str:
                 "google": "Google",
                 "maps": "Google Maps",
                 "spotify": "Spotify"
-            }
-            display_name = special_names.get(site_name, site_name.capitalize())
-            return f"Otvaram {display_name}"
+            }.get(site_name, site_name.capitalize())
+            
+            return json.dumps({
+                "type": "openUrl",
+                "url": url,
+                "mobileUrl": mobile_url,
+                "message": f"Otvaram {display_name}"
+            })
     
     return "Nisam pronašao tu web stranicu"
 
@@ -545,3 +568,7 @@ app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 @app.get("/api/health")
 async def health_check():
     return {"status": "online", "message": "SayMe API is running"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), log_level="info")
