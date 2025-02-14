@@ -534,21 +534,17 @@ async def websocket_endpoint(websocket: WebSocket):
 async def startup_event():
     logger.info("SayMe API is starting up")
 
-@app.get("/")
-async def root():
-    return {"status": "online", "message": "SayMe API is running"}
-
-# Ažurirajte putanje za statičke datoteke
+# Ažuriraj putanje za statičke datoteke
 current_dir = os.path.dirname(os.path.realpath(__file__))
 frontend_dir = os.path.join(os.path.dirname(current_dir), 'frontend')
 
-# Montiraj frontend direktorij kao statički
-app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dir, "assets")), name="assets")
-app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
+# Serviranje frontenda
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
-@app.get("/")
-async def read_index():
-    return FileResponse(os.path.join(frontend_dir, "index.html"))
+# API health check endpoint
+@app.get("/api/health")
+async def health_check():
+    return {"status": "online", "message": "SayMe API is running"}
 
 # Use environment variable for port if available
 PORT = os.getenv("PORT", 8000)
