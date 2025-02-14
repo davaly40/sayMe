@@ -1,6 +1,6 @@
 :root {
-    --dark-bg: #0a0a0a;
-    --darker-bg: #050505;
+    --dark-bg: #000000;
+    --darker-bg: #000000;
     --accent: #00ff95;
     --accent-red: #ff4545;
     --text: #ffffff;
@@ -774,5 +774,20 @@ button:hover {
     .audio-circle {
         width: 350px;
         height: 350px;
+    }
+}
+
+/* Dodajte na kraj datoteke */
+@media (display-mode: standalone) {
+    body {
+        background: #000000;
+    }
+    
+    .container {
+        background: rgba(15, 15, 15, 0.8);
+    }
+    
+    .footer {
+        background: rgba(0, 0, 0, 0.98);
     }
 }

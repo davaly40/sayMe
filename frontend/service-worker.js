@@ -7,9 +7,7 @@ const ASSETS_TO_CACHE = [
     '/audioVisualizer.js',
     '/manifest.json',
     '/assets/logo.png',
-    '/assets/mic.png',
-    '/assets/app-icon-192.png',
-    '/assets/app-icon-512.png'
+    '/assets/mic.png'
 ];
 
 self.addEventListener('install', (event) => {
