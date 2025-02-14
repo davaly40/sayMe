@@ -36,39 +36,87 @@ function formatResponse(text) {
 
 // Add speech recognition initialization
 function initializeSpeechRecognition() {
-    recognition = new webkitSpeechRecognition();
-    recognition.lang = 'hr-HR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-        updateState('listening');
-        console.log('Speech recognition started');
-    };
-
-    recognition.onend = () => {
-        updateState(null);
-        console.log('Speech recognition ended');
-    };
+    // Prva provjera za različite implementacije Speech Recognition API-ja
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    recognition.onresult = function(event) {
-        const command = event.results[0][0].transcript.toLowerCase();
-        console.log('Recognized:', command);
-        appendMessage(command, true);
-        updateState('thinking');
-        
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(command);
-        } else {
-            appendMessage("Nije moguće poslati poruku. Server nije dostupan.", false);
-            updateState(null);
-        }
-    };
+    if (!window.SpeechRecognition) {
+        alert('Vaš uređaj ne podržava prepoznavanje govora. Pokušajte koristiti noviju verziju Chrome browsera.');
+        return;
+    }
 
-    recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
-        updateState(null);
-    };
+    try {
+        recognition = new window.SpeechRecognition();
+        recognition.lang = 'hr-HR';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        // Dodano rukovanje greškama
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+                alert('Molimo dozvolite pristup mikrofonu za korištenje aplikacije.');
+            } else if (event.error === 'network') {
+                alert('Provjerite internetsku vezu.');
+            } else {
+                alert('Došlo je do greške. Pokušajte osvježiti stranicu ili koristiti Chrome browser.');
+            }
+            updateState(null);
+        };
+
+        recognition.onstart = () => {
+            updateState('listening');
+            console.log('Speech recognition started');
+        };
+
+        recognition.onend = () => {
+            updateState(null);
+            console.log('Speech recognition ended');
+        };
+        
+        recognition.onresult = function(event) {
+            const command = event.results[0][0].transcript.toLowerCase();
+            console.log('Recognized:', command);
+            appendMessage(command, true);
+            updateState('thinking');
+            
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(command);
+            } else {
+                appendMessage("Nije moguće poslati poruku. Server nije dostupan.", false);
+                updateState(null);
+            }
+        };
+
+    } catch (error) {
+        console.error('Error initializing speech recognition:', error);
+        alert('Došlo je do greške pri inicijalizaciji prepoznavanja govora. Pokušajte koristiti Chrome browser.');
+    }
+}
+
+// Dodaj novu funkciju za provjeru kompatibilnosti
+function checkDeviceCompatibility() {
+    const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isSamsung = /Samsung/i.test(navigator.userAgent);
+    
+    if (isAndroid) {
+        if (!isChrome) {
+            alert('Za najbolje iskustvo, koristite Chrome browser na Android uređaju.');
+        }
+        if (isSamsung) {
+            // Samsung uređaji često imaju problema s WebView-om
+            console.log('Samsung device detected, using fallback mode');
+        }
+    }
+    
+    // Provjeri WebView verziju na Android uređajima
+    const match = navigator.userAgent.match(/Chrome\/([0-9]+)/);
+    if (match) {
+        const version = parseInt(match[1]);
+        if (version < 85) { // Minimalna verzija za pouzdano prepoznavanje govora
+            alert('Ažurirajte Chrome browser ili Android System WebView za korištenje ove aplikacije.');
+        }
+    }
 }
 
 async function initializeWebSocket() {
@@ -201,6 +249,8 @@ function loadVoices() {
 
 // Update window.onload to handle AudioContext properly
 window.onload = async function() {
+    checkDeviceCompatibility();
+    
     // Register service worker for PWA support
     if ('serviceWorker' in navigator) {
         try {
