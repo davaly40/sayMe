@@ -29,9 +29,9 @@ body {
     background: transparent;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Promijenjeno */
+    justify-content: space-between; /* Ovo osigurava da logo bude lijevo, a ikone desno */
     z-index: 100;
-    position: relative; /* Dodano */
+    position: relative;
 }
 
 .header-actions {
@@ -39,22 +39,22 @@ body {
     align-items: center;
     gap: 1.5rem;
     margin-right: 2rem;
-    position: relative; /* Dodano */
 }
 
 .header-icon {
     width: 24px;
     height: 24px;
     cursor: pointer;
-    transition: opacity 0.3s;
-}
-
-.header-icon:hover {
-    opacity: 0.8;
+    transition: all 0.3s ease;
 }
 
 .share-icon {
     filter: brightness(0) invert(1); /* Čini ikonu bijelom */
+}
+
+.help-icon {
+    /* Originalna boja error ikone */
+    opacity: 0.9;
 }
 
 .share-container, .help-container {
@@ -63,11 +63,11 @@ body {
 
 .share-modal, .help-modal {
     position: absolute;
-    top: calc(100% + 15px); /* Pomaknut malo niže od ikone */
+    top: calc(100% + 10px);
     right: 0;
     background: rgba(15, 15, 15, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     display: none;
@@ -77,13 +77,14 @@ body {
     max-width: 320px;
 }
 
+/* Strelica na vrhu modala */
 .share-modal::before, .help-modal::before {
     content: '';
     position: absolute;
-    top: -6px;
-    right: 10px;
-    width: 12px;
-    height: 12px;
+    top: -8px;
+    right: 12px;
+    width: 16px;
+    height: 16px;
     background: rgba(15, 15, 15, 0.95);
     transform: rotate(45deg);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
@@ -92,7 +93,7 @@ body {
 
 .share-modal.active, .help-modal.active {
     display: block;
-    animation: modalFadeIn 0.3s ease;
+    animation: modalFadeIn 0.2s ease;
 }
 
 @keyframes modalFadeIn {
