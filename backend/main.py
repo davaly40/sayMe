@@ -218,7 +218,6 @@ COMMANDS: Dict[str, str] = {
     "hej": "Hej! Kako vam mogu pomoći?",
     "e": "Hej!",
     "ee": "Hej!",
-    
 }
 
 WEBSITES = {
