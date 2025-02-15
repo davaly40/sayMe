@@ -25,7 +25,19 @@
     <meta http-equiv="origin-trial" content="ForceSpeechWebAPI">
     
     <!-- Dodaj dozvole za kameru i notifikacije -->
-    <meta name="permissions" content="camera notifications wake-lock">
+    <meta name="permissions" content="camera alarms notifications wake-lock">
+    
+    <!-- Za Android uređaje -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="android-mobile-web-app-capable" content="yes">
+    
+    <!-- Za iOS uređaje -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <!-- Za deep linking -->
+    <meta name="android-package" content="com.android.camera">
+    <meta name="android-package" content="com.android.deskclock">
     
     <!-- Dodaj preload za poboljšanje performansi -->
     <link rel="preconnect" href="https://www.google.com">
