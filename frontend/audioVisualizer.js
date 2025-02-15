@@ -25,10 +25,6 @@ class BlobVisualizer {
         this.glowIntensity = 0.0; // Za dinamički glow efekt
         this.audioInitialized = false;
         this.lastAudioLevel = 0;
-        this.animationSpeed = 0.01;
-        this.baseRadius = 0.6;
-        this.currentRadius = this.baseRadius;
-        this.targetRadius = this.baseRadius;
     }
 
     async init() {
@@ -42,11 +38,6 @@ class BlobVisualizer {
             
             // Then initialize audio context
             await this.initAudioContext();
-            if (this.analyser) {
-                this.analyser.minDecibels = -90;
-                this.analyser.maxDecibels = -10;
-                this.analyser.smoothingTimeConstant = 0.85;
-            }
             
             this.isInitialized = true;
             console.log('Visualizer initialized successfully');
@@ -396,50 +387,34 @@ class BlobVisualizer {
         this.gl.uniform1f(this.glowIntensityLocation, this.glowIntensity);
     }
 
-    updateAnimation() {
-        // Update radius with smooth interpolation
-        const diff = this.targetRadius - this.currentRadius;
-        this.currentRadius += diff * this.animationSpeed;
-        
-        // Get audio data if available
-        let audioLevel = 0;
-        if (this.analyser && this.frequencyData) {
-            this.analyser.getByteFrequencyData(this.frequencyData);
-            const sum = this.frequencyData.reduce((a, b) => a + b, 0);
-            audioLevel = sum / (this.frequencyData.length * 255); // Normalize to 0-1
-        }
-        
-        // Set uniforms for shader
-        this.gl.uniform1f(this.circleSizeLocation, this.currentRadius);
-        this.gl.uniform1f(this.audioLevelLocation, audioLevel);
-    }
-
     animate() {
         if (!this.isAnimating || !this.isInitialized) return;
         
         try {
             const currentTime = performance.now() / 1000;
             
-            this.updateAnimation();
+            // Dohvati audio podatke
+            if (this.analyser) {
+                this.analyser.getByteFrequencyData(this.frequencyData);
+                const sum = this.frequencyData.reduce((a, b) => a + b, 0);
+                const avg = sum / this.frequencyData.length;
+                this.lastAudioLevel = avg / 256;
+            }
             
-            // Update time uniform
+            // Smoothing
+            const targetSize = 0.8 + (this.lastAudioLevel * 0.4);
+            this.currentSize += (targetSize - this.currentSize) * 0.1;
+            
+            // Update uniforms
             this.gl.uniform1f(this.timeLocation, currentTime);
+            this.gl.uniform1f(this.circleSizeLocation, this.currentSize);
+            this.gl.uniform1f(this.audioLevelLocation, this.lastAudioLevel);
             
-            // Draw
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
         } catch (error) {
             console.error('Animation error:', error);
         }
         
         requestAnimationFrame(() => this.animate());
-    }
-
-    // Call this when words are being spoken
-    triggerWord(wordLength) {
-        const intensity = Math.min(wordLength * 0.05, 0.7);
-        this.targetRadius = this.baseRadius * (1 - intensity);
-        setTimeout(() => {
-            this.targetRadius = this.baseRadius;
-        }, 100);
     }
 }
