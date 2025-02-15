@@ -385,10 +385,6 @@ function initializeModals() {
         console.log('Share button clicked'); // Debug log
         helpModal.classList.remove('active');
         shareModal.classList.toggle('active');
-        // Dodano za centriranje na mobilnim uređajima
-        if (window.innerWidth <= 768) {
-            document.body.style.overflow = shareModal.classList.contains('active') ? 'hidden' : '';
-        }
     });
 
     helpButton.addEventListener('click', function(e) {
@@ -396,10 +392,6 @@ function initializeModals() {
         console.log('Help button clicked'); // Debug log
         shareModal.classList.remove('active');
         helpModal.classList.toggle('active');
-        // Dodano za centriranje na mobilnim uređajima
-        if (window.innerWidth <= 768) {
-            document.body.style.overflow = helpModal.classList.contains('active') ? 'hidden' : '';
-        }
     });
 
     // Kopiraj link
@@ -423,7 +415,6 @@ function initializeModals() {
             !helpModal.contains(e.target)) {
             shareModal.classList.remove('active');
             helpModal.classList.remove('active');
-            document.body.style.overflow = ''; // Vrati scroll
         }
     });
 
@@ -762,10 +753,6 @@ document.addEventListener('DOMContentLoaded', function() {
         e.stopPropagation();
         helpModal.classList.remove('active');
         shareModal.classList.toggle('active');
-        // Dodano za centriranje na mobilnim uređajima
-        if (window.innerWidth <= 768) {
-            document.body.style.overflow = shareModal.classList.contains('active') ? 'hidden' : '';
-        }
     });
 
     // Event listener za help button
@@ -773,10 +760,6 @@ document.addEventListener('DOMContentLoaded', function() {
         e.stopPropagation();
         shareModal.classList.remove('active');
         helpModal.classList.toggle('active');
-        // Dodano za centriranje na mobilnim uređajima
-        if (window.innerWidth <= 768) {
-            document.body.style.overflow = helpModal.classList.contains('active') ? 'hidden' : '';
-        }
     });
 
     // Event listener za copy button
@@ -798,7 +781,6 @@ document.addEventListener('DOMContentLoaded', function() {
             !helpModal.contains(e.target)) {
             shareModal.classList.remove('active');
             helpModal.classList.remove('active');
-            document.body.style.overflow = ''; // Vrati scroll
         }
     });
 
