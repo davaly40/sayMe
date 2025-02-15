@@ -366,67 +366,81 @@ function initializeModals() {
     const shareModal = document.getElementById('shareModal');
     const helpButton = document.getElementById('helpButton');
     const helpModal = document.getElementById('helpModal');
-    const modalOverlay = document.getElementById('modalOverlay');
     const copyButton = document.getElementById('copyButton');
     const shareLinkInput = document.getElementById('shareLink');
+
+    if (!shareButton || !shareModal || !helpButton || !helpModal) {
+        console.error('Modal elements not found');
+        return;
+    }
 
     // Postavi trenutnu URL adresu
     if (shareLinkInput) {
         shareLinkInput.value = window.location.href;
     }
 
-    function showModal(modal) {
-        modalOverlay.classList.add('active');
-        modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function hideModals() {
-        modalOverlay.classList.remove('active');
-        shareModal.classList.remove('active');
-        helpModal.classList.remove('active');
-        document.body.style.overflow = '';
-    }
-
     // Event listeneri za modale
     shareButton.addEventListener('click', function(e) {
         e.stopPropagation();
-        hideModals();
-        showModal(shareModal);
+        console.log('Share button clicked'); // Debug log
+        helpModal.classList.remove('active');
+        shareModal.classList.toggle('active');
+        // Dodano za centriranje na mobilnim uređajima
+        if (window.innerWidth <= 768) {
+            document.body.style.overflow = shareModal.classList.contains('active') ? 'hidden' : '';
+        }
     });
 
     helpButton.addEventListener('click', function(e) {
         e.stopPropagation();
-        hideModals();
-        showModal(helpModal);
-    });
-
-    // Kopiraj link
-    copyButton?.addEventListener('click', async function() {
-        try {
-            await navigator.clipboard.writeText(shareLinkInput.value);
-            copyButton.textContent = 'Kopirano!';
-            setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
+        console.log('Help button clicked'); // Debug log
+        shareModal.classList.remove('active');
+        helpModal.classList.toggle('active');
+        // Dodano za centriranje na mobilnim uređajima
+        if (window.innerWidth <= 768) {
+            document.body.style.overflow = helpModal.classList.contains('active') ? 'hidden' : '';
         }
     });
 
-    // Zatvori modale klikom na overlay
-    modalOverlay.addEventListener('click', hideModals);
+    // Kopiraj link
+    if (copyButton) {
+        copyButton.addEventListener('click', async function() {
+            try {
+                await navigator.clipboard.writeText(shareLinkInput.value);
+                copyButton.textContent = 'Kopirano!';
+                setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        });
+    }
+
+    // Zatvori modale klikom izvan
+    document.addEventListener('click', function(e) {
+        if (!shareButton.contains(e.target) && 
+            !shareModal.contains(e.target) && 
+            !helpButton.contains(e.target) && 
+            !helpModal.contains(e.target)) {
+            shareModal.classList.remove('active');
+            helpModal.classList.remove('active');
+            document.body.style.overflow = ''; // Vrati scroll
+        }
+    });
 
     // Zatvori modale na ESC
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') hideModals();
+        if (e.key === 'Escape') {
+            shareModal.classList.remove('active');
+            helpModal.classList.remove('active');
+        }
     });
-
-    // Spriječi zatvaranje modala klikom unutar njega
-    shareModal.addEventListener('click', e => e.stopPropagation());
-    helpModal.addEventListener('click', e => e.stopPropagation());
 }
 
-// Inicijalizacija pri učitavanju stranice
-document.addEventListener('DOMContentLoaded', initializeModals);
+// Dodajmo inicijalizaciju modala u DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+    initializeModals();
+    // ...rest of your DOMContentLoaded code...
+});
 
 async function handleCameraRequest(isFrontCamera = false, withTimer = false) {
     try {
