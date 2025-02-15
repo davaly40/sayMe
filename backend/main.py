@@ -292,25 +292,29 @@ class ConversationState:
 conversation_states: Dict[str, ConversationState] = {}
 
 def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
-    # Očisti input od specijalnih znakova i višestrukih razmaka
+    # Očisti input
     cleaned_input = re.sub(r'[^\w\s]', '', user_input.lower()).strip()
     cleaned_input = ' '.join(cleaned_input.split())
     
-    # Ukloni prefixe
-    prefixes = ["hej", "ej", "hey", "e", "bok", "hello", "hi"]
-    for prefix in prefixes:
-        if cleaned_input.startswith(prefix):
-            cleaned_input = cleaned_input[len(prefix):].strip()
+    # Provjeri je li samo pozdrav
+    greetings = ["ej", "hej", "bok", "e", "ee", "pozdrav"]
+    if cleaned_input in greetings:
+        return COMMANDS[cleaned_input]
     
-    # Prvo probaj exact match
+    # Ukloni pozdrave iz inputa ako postoje
+    for greeting in greetings:
+        if cleaned_input.startswith(greeting):
+            cleaned_input = cleaned_input[len(greeting):].strip()
+    
+    # Provjeri vrijeme
+    if any(phrase in cleaned_input for phrase in ["koliko je sati", "koje je vrijeme"]):
+        return get_time()
+        
+    # Exact match za preostale komande
     if cleaned_input in COMMANDS:
         return COMMANDS[cleaned_input]
     
-    # Ako je pitanje o vremenu
-    if any(phrase in cleaned_input for phrase in ["koliko je sati", "koje je vrijeme"]):
-        return get_time()
-    
-    # Ako nema exact matcha, probaj fuzzy match
+    # Fuzzy match kao fallback
     for cmd in COMMANDS:
         if cleaned_input in cmd or cmd in cleaned_input:
             return COMMANDS[cmd]
@@ -403,10 +407,11 @@ def open_website(name: str) -> str:
 
 def get_time() -> str:
     now = datetime.now()
-    hour = now.hour
+    # Dodaj UTC+1 za hrvatsko vrijeme
+    hour = (now.hour + 1) % 24
     minute = now.minute
     
-    # Dodajemo bolje formatiranje za minute manje od 10
+    # Formatiranje minuta
     minute_str = f"0{minute}" if minute < 10 else str(minute)
     
     return f"Trenutno je {hour} sati i {minute_str} minuta"

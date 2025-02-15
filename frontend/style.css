@@ -9,11 +9,11 @@
 
 body {
     min-height: 100vh;
-    height: 100vh;
+    height: 100%;  /* Promijenjeno sa 100vh */
     margin: 0;
     padding: 0;
-    display: grid;
-    grid-template-rows: auto 1fr auto;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     background: var(--darker-bg);
     color: var(--text);
@@ -59,6 +59,8 @@ body {
     box-shadow: 0 0 30px rgba(0, 255, 149, 0.1);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex: 1;
+    margin-bottom: auto;
 }
 
 .logo {
@@ -676,21 +678,26 @@ button:hover {
 
 .footer {
     width: 100%;
-    padding: 1.5rem;
-    background: rgba(0, 0, 0, 0.95); /* Tamnija pozadina */
-    backdrop-filter: blur(10px);
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.95);
     text-align: center;
     color: var(--text);
-    font-size: 1rem;
+    font-size: 0.9rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;  /* Promijenjeno sa relative */
+    bottom: 0;
     z-index: 100;
-    position: relative; /* Dodano */
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    body {
+        height: -webkit-fill-available; /* Za iOS */
+    }
+    
     .container {
         width: clamp(280px, 85%, 500px);
+        margin-bottom: 1rem;  /* Dodaj prostor iznad footera */
     }
 
     .audio-circle {
@@ -719,9 +726,9 @@ button:hover {
     }
     
     .footer {
-        padding: 1rem;
-        font-size: 0.9rem;
-        background: rgba(0, 0, 0, 1); /* Puna crna na mobilnom */
+        padding: 0.75rem;
+        font-size: 0.85rem;
+        background: rgba(0, 0, 0, 0.98);
     }
 }
 
