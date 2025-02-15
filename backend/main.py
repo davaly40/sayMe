@@ -138,7 +138,6 @@ COMMANDS: Dict[str, str] = {
     "daj mi vic": "Na žalost, ne znam pričati viceve.",
 
     "ti si peder": "Drago mi je Peder, ja sam Noa.",
-    "ti si": "Drago mi je, ja sam Noa.",
     "pederu": "Hmm, ne znam tko je Peder.",
     "pederčino": "Hmm, ne znam što to znači.",
     "pederčina": "Hmm, ne znam što to znači.",
@@ -153,10 +152,10 @@ COMMANDS: Dict[str, str] = {
 
     "gdje se nalaziš": "Ja sam ovdje, na internetu.",
     "gdje si": "Tu sam ja!.",
-    "dosadno mi je": "Hmm evo par zanimljivih stvari koje možeš raditi: Možeš pročitati knjigu, gledati film, igrati igricu, šetati, vježbati, kuhati, učiti nešto novo, razgovarati s prijateljima... Što misliš?",
-    "što da radim": "Hmm evo par zanimljivih stvari koje možeš raditi: Možeš pročitati knjigu, gledati film, igrati igricu, šetati, vježbati, kuhati, učiti nešto novo, razgovarati s prijateljima... Što misliš?",
+    "dosadno mi je": "Hm evo par zanimljivih stvari koje možeš raditi: Možeš pročitati knjigu, gledati film, igrati igricu, šetati, vježbati, kuhati, učiti nešto novo, razgovarati s prijateljima... Što misliš?",
+    "što da radim": "Hm evo par zanimljivih stvari koje možeš raditi: Možeš pročitati knjigu, gledati film, igrati igricu, šetati, vježbati, kuhati, učiti nešto novo, razgovarati s prijateljima... Što misliš?",
 
-    "šta voliš jest:": "Hmm, ne jedem, ali volim podatke.",
+    "šta voliš jest:": "Hm... Ne jedem, ali volim podatke.",
     "što voliš jesti": "Ne jedem, ali volim podatke.",
     "što voliš": "Volim pomoći ljudima.",
     "koja ti je najdraža hrana": "Ne jedem, ali volim podatke.",
@@ -205,6 +204,9 @@ COMMANDS: Dict[str, str] = {
     "dali bi volio biti stvaran": "Ja jesam stvaran.",
     "dali bi volio biti prava osoba": "Ne, kul je biti robot.",
     "dali bi voljela biti prava osoba": "Ne, kul je biti robot.",
+    "bi volio bit živ": "Ne, ovako mi je dobro.",
+    "bi voljela bit živa": "Ne, ovako mi je dobro.",
+
 
     
     "kako to ne znaš": "Nažalost, nemam još sve informacije ali još učim.",
@@ -228,8 +230,6 @@ COMMANDS: Dict[str, str] = {
     "bok": "Bok! Kako vam mogu pomoći?",
     "ej": "Ej! Kako vam mogu pomoći?",
     "hej": "Hej! Kako vam mogu pomoći?",
-    "e": "Hej!",
-    "ee": "Hej!",
     "dobar dan": "Dobar dan! Kako vam mogu pomoći?",
     "dobro jutro": "Dobro jutro! Kako vam mogu pomoći?",
     "dobro veče": "Dobro veče! Kako vam mogu pomoći?",
@@ -310,6 +310,67 @@ CITY_NAMES = {
     "puli": "pula",
     "pula": "pula",
     "pulu": "pula",
+    "dubrovniku": "dubrovnik",
+    "dražice": "dražice",
+    "dražicama": "dražice",
+    "makarska": "makarska",
+    "solin": "solin",
+    "makarskoj": "makarska",
+    "solinu": "solin",
+    "korčuli": "korčula",
+    "hvaru": "hvar",
+    "hvar": "hvar",
+    "korčula": "korčula",
+    "dubrovnik": "dubrovnik",
+    "vukovaru": "vukovar",
+    "vukovar": "vukovar",
+    "varaždinu": "varaždin",
+    "varaždin": "varaždin",
+    "šibeniku": "šibenik",
+    "šibenik": "šibenik",
+    "senju": "senj",
+    "senj": "senj",
+    "krivi put": "krivi put",
+    "krivom putu": "krivi put",
+    "krk": "krk",
+    "krku": "krk",
+    "cresu": "cres",
+    "cres": "cres",
+    "lošinju": "lošinj",
+    "lošinj": "lošinj",
+    "rovinju": "rovinj",
+    "rovinj": "rovinj",
+    "buzetu": "buzet",
+    "buzet": "buzet",
+    "poreču": "poreč",
+    "poreč": "poreč",
+    "pazinu": "pazin",
+    "pazin": "pazin",
+    "karlovcu": "karlovac",
+    "karlovac": "karlovac",
+    "sisku": "sisak",
+    "sisak": "sisak",
+    "delnicama": "delnice",
+    "delnice": "delnice",
+    "bjelovaru": "bjelovar",
+    "bjelovar": "bjelovar",
+    "slavonskom brodu": "slavonski brod",
+    "slavonski brod": "slavonski brod",
+    "opatiji": "opatija",
+    "opatija": "opatija",
+    "viškovu": "viškovo",
+    "viškovo": "viškovo",
+    "jelenju": "jelenje",
+    "jelenje": "jelenje",
+    "kastvu": "kastav",
+    "kastav": "kastav",
+    "alanu": "alan",
+    "alan": "alan",
+    "crikvenici": "crikvenica",
+    "crikvenica": "crikvenica",
+    "novom vinodolskom": "novi vinodolski",
+    "novi vinodolski": "novi vinodolski",
+
 }
 
 @dataclass
@@ -424,6 +485,15 @@ def open_website(name: str) -> str:
                 "google": "Google",
                 "maps": "Google Maps",
                 "spotify": "Spotify"
+                "fejs": "Facebook",
+                "insta": "Instagram",
+                "gugl": "Google",
+                "karte": "Google Maps",
+                "navigacija": "Google Maps",
+                "navigaciju": "Google Maps",
+                "fejsbuk": "Facebook",
+                "kanva": "Canva",
+
             }.get(site_name, site_name.capitalize())
             
             return json.dumps({
@@ -581,7 +651,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 if any(phrase in text for phrase in [
                     "koliko je sati",
                     "koje je vrijeme na satu",
-                    "kolko je sati"
+                    "kolko je sati",
+                    "koje je vrijeme",
+                    "ka je ura",
+                    "ka je ura sad",
+                    "ka je sad ura",
+                    "kuliko je ur",
+                    "ko vrime je",
+                    "koliko je točno sati",
+                    "koji je sat",
+                    "koliko je sati sada",
                 ]):
                     response = get_time()
                 # Zatim provjeri ostale slučajeve
@@ -605,7 +684,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     if any(phrase in text for phrase in [
                         "kakvo je vrijeme", "kakvo će biti vrijeme",
                         "hoće li padati kiša", "da li će padati kiša",
-                        "kakva je prognoza", "kakvo vrijeme"
+                        "kakva je prognoza", "kakvo vrijeme", "će daž", "vremenska prognoza",
                     ]):
                         city, is_tomorrow = extract_city_and_time(text)
                         if city:
