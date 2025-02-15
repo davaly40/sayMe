@@ -242,7 +242,6 @@ async function speak(text) {
         }
 
         updateState('speaking');
-        visualizer.start();
 
         // Connect audio to visualizer
         if (visualizer && visualizer.audioContext) {
@@ -255,7 +254,6 @@ async function speak(text) {
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);
-                    visualizer.stop();
                     resolve();
                 }, 500);
             };
@@ -279,7 +277,6 @@ async function speak(text) {
     } catch (error) {
         console.error('Speak error:', error);
         updateState(null);
-        visualizer.stop();
     }
 }
 
@@ -374,7 +371,7 @@ window.onload = async function() {
     initializeSpeechRecognition();
 
     // Initialize visualizer immediately
-    visualizer = new AudioVisualizer('visualizer');
+    visualizer = new BlobVisualizer('visualizer');
     await visualizer.init();
     visualizer.startVisualization();
     
@@ -387,33 +384,6 @@ window.onload = async function() {
     });
 
     await loadVoices();
-
-    // Start visualization when speaking/listening
-    recognition.onstart = () => {
-        updateState('listening');
-        visualizer.start();
-    };
-    
-    recognition.onend = () => {
-        updateState(null);
-        visualizer.stop();
-    };
-    
-    // Connect speech synthesis to visualizer
-    speechSynthesis.addEventListener('speak', () => {
-        visualizer.start();
-    });
-    
-    speechSynthesis.addEventListener('end', () => {
-        visualizer.stop();
-    });
-    
-    // Handle window resize
-    window.addEventListener('resize', () => {
-        if (visualizer) {
-            visualizer.resize();
-        }
-    });
 };
 
 function initializeModals() {
