@@ -756,40 +756,37 @@ function updateVisualization(state) {
     const circle = document.querySelector('.audio-circle');
     if (!circle) return;
 
-    // Reset all states
+    // Reset states
     circle.classList.remove('speaking', 'thinking', 'listening');
     
     if (state) {
         circle.classList.add(state);
         
         if (state === 'speaking') {
-            animateSpectrum();
+            animateVoiceDots();
         }
     }
 }
 
-function animateSpectrum() {
-    const bars = document.querySelectorAll('.spectrum-bar');
-    const maxScale = 2;
-    const minScale = 0.5;
-    
-    function animate() {
-        if (!document.querySelector('.audio-circle.speaking')) return;
-        
-        bars.forEach(bar => {
-            const scale = minScale + Math.random() * (maxScale - minScale);
-            bar.style.transform = bar.style.transform.replace(
-                /scaleY\([^)]+\)/,
-                `scaleY(${scale})`
-            );
-            bar.style.opacity = 0.3 + (scale - minScale) / (maxScale - minScale) * 0.7;
-        });
-        
-        requestAnimationFrame(animate);
-    }
-    
-    animate();
+function animateVoiceDots() {
+    const dots = document.querySelectorAll('.voice-dots span');
+    dots.forEach((dot, i) => {
+        dot.style.animationDelay = `${i * 0.1}s`;
+    });
 }
+
+function initializeVisualization() {
+    const dots = document.querySelectorAll('.voice-dots span');
+    dots.forEach((dot, i) => {
+        dot.style.setProperty('--rotation', `${i * 45}deg`);
+        dot.style.transform = `rotate(${i * 45}deg) translateY(-45px)`;
+    });
+}
+
+// Add to window.onload
+window.addEventListener('load', () => {
+    initializeVisualization();
+});
 
 function createSpectrumBars() {
     const container = document.querySelector('.spectrum-bars');
