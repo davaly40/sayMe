@@ -29,7 +29,7 @@ body {
     background: transparent;
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Ovo osigurava da logo bude lijevo, a ikone desno */
+    justify-content: space-between; /* Osigurava da logo bude lijevo, a ikone desno */
     z-index: 1000;
     position: relative;
 }
@@ -38,6 +38,7 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    margin-left: auto; /* Ovo će gurnuti ikone skroz desno */
     margin-right: 2rem;
 }
 
@@ -64,9 +65,10 @@ body {
 }
 
 .share-modal, .help-modal {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
+    position: fixed; /* Promijenjeno s absolute na fixed */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     background: rgba(15, 15, 15, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -82,18 +84,9 @@ body {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-/* Strelica na vrhu modala */
+/* Uklanjamo strelicu jer će modal biti na sredini */
 .share-modal::before, .help-modal::before {
-    content: '';
-    position: absolute;
-    top: -8px;
-    right: 12px;
-    width: 16px;
-    height: 16px;
-    background: rgba(15, 15, 15, 0.95);
-    transform: rotate(45deg);
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: none;
 }
 
 .share-modal.active, .help-modal.active {
@@ -124,11 +117,10 @@ body {
     width: 200px;
     height: 200px;
     margin: 0 auto;
-    display: block;
-    object-fit: contain;
+    padding: 0.5rem;
     background: white;
-    padding: 1rem;
     border-radius: 4px;
+    object-fit: contain; /* Osigurava da se QR kod pravilno prikazuje */
 }
 
 .share-link {
