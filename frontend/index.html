@@ -26,10 +26,19 @@
     
     <!-- Dodaj dozvole za kameru i notifikacije -->
     <meta name="permissions" content="camera alarms notifications wake-lock">
+    <!-- Dodaj dozvole za sistemske funkcije -->
+    <meta name="permissions-policy" content="camera=(), alarm=(), notifications=()">
+    <meta name="intent-filter">
+        <action android:name="android.media.action.IMAGE_CAPTURE" />
+        <action android:name="android.intent.action.SET_ALARM" />
+    </meta>
     
     <!-- Za Android uređaje -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="android-mobile-web-app-capable" content="yes">
+    <!-- Za Android deep linking -->
+    <meta name="android-app" content="app-id=com.android.camera">
+    <meta name="android-app" content="app-id=com.android.deskclock">
     
     <!-- Za iOS uređaje -->
     <meta name="apple-mobile-web-app-capable" content="yes">

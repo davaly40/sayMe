@@ -807,4 +807,101 @@ function createCalendarEventUrl(hours, minutes) {
 
 
 
-// ...rest of the existing code...}END:VCALENDAR`;END:VEVENTDESCRIPTION:SayMe AlarmSUMMARY:AlarmDTEND:${formatDate(endDate)}DTSTART:${formatDate(date)}BEGIN:VEVENTVERSION:2.0    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR    
+// ...rest of the existing code...}END:VCALENDAR`;END:VEVENTDESCRIPTION:SayMe AlarmSUMMARY:AlarmDTEND:${formatDate(endDate)}DTSTART:${formatDate(date)}BEGIN:VEVENTVERSION:2.0    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
+
+async function openSystemCamera(mode = 'back') {
+    try {
+        const isAndroid = /android/i.test(navigator.userAgent);
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        
+        if (isAndroid) {
+            // Android Intent za kameru
+            const intentUrl = `intent://#Intent;` +
+                            `action=android.media.action.${mode === 'front' ? 'SELFIE' : 'IMAGE_CAPTURE'};` +
+                            `package=com.android.camera;` +
+                            `component=com.android.camera/.Camera;` +
+                            `end`;
+            location.href = intentUrl;
+            return true;
+        } else if (isIOS) {
+            // iOS URL scheme
+            location.href = 'camera://';
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error opening system camera:', error);
+        return false;
+    }
+}
+
+async function openSystemAlarm(hours, minutes) {
+    try {
+        const isAndroid = /android/i.test(navigator.userAgent);
+        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        
+        if (isAndroid) {
+            // Android Intent za alarm
+            const intentUrl = `intent:#Intent;` +
+                            `action=android.intent.action.SET_ALARM;` +
+                            `package=com.android.deskclock;` +
+                            `type=vnd.android.cursor.item/alarm;` +
+                            `l.android.intent.extra.alarm.HOUR=${hours};` +
+                            `l.android.intent.extra.alarm.MINUTES=${minutes};` +
+                            `b.android.intent.extra.alarm.SKIP_UI=false;` +
+                            `end`;
+            location.href = intentUrl;
+            return true;
+        } else if (isIOS) {
+            // iOS URL scheme za alarm
+            location.href = `clockapp://alarm?hours=${hours}&minutes=${minutes}`;
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Error setting system alarm:', error);
+        return false;
+    }
+}
+
+// Modificiraj postojeće handlery
+async function handleCameraRequest(text) {
+    const mode = text.toLowerCase();
+    const isFront = mode.includes('prednju') || mode.includes('selfi');
+    
+    // Prvo pokušaj otvoriti sistemsku kameru
+    if (await openSystemCamera(isFront ? 'front' : 'back')) {
+        return "Otvaram kameru...";
+    }
+    
+    // Ako ne uspije, koristi web kameru kao fallback
+    try {
+        await openWebCamera(isFront ? 'user' : 'environment');
+        return "Otvaram web kameru...";
+    } catch (error) {
+        return "Nažalost, ne mogu pristupiti kameri. Provjerite dozvole.";
+    }
+}
+
+function handleAlarmRequest(text) {
+    const timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(?:h|sati?)?/);
+    if (!timeMatch) {
+        return "Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'";
+    }
+
+    const hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2] || '0');
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        return "Molim vas unesite ispravno vrijeme.";
+    }
+
+    // Pokušaj postaviti sistemski alarm
+    if (openSystemAlarm(hours, minutes)) {
+        return `Postavljam alarm za ${hours}:${minutes.toString().padStart(2, '0')}`;
+    } else {
+        return "Nažalost, ne mogu postaviti sistemski alarm. Pokušajte ručno.";
+    }
+}
+
+// ...existing code...
