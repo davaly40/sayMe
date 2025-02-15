@@ -45,14 +45,14 @@ DEFAULT_RESPONSES = [
 ]
 
 COMMANDS: Dict[str, str] = {
-    "kako se zoveš": "sejMi!",
-    "ko si ti": "Moje ime je sejMi.",
-    "tko si ti": "Ja sam sejMi!",
-    "a tko si ti": "Ja sam sejMi!",
-    "koje je tvoje ime": "Ime mi je sejMi.",
-    "što si": "Ja sam glasovni asistent sejMi.",
-    "što si ti": "Ja sam hrvatski glasovni asistent sejMi.",
-    "koje ti je ime": "Ime mi je sejMi.",
+    "kako se zoveš": "Noa!",
+    "ko si ti": "Moje ime je Noa.",
+    "tko si ti": "Ja sam Noa!",
+    "a tko si ti": "Ja sam Noa!",
+    "koje je tvoje ime": "Ime mi je Noa.",
+    "što si": "Ja sam glasovni asistent Noa.",
+    "što si ti": "Ja sam hrvatski glasovni asistent Noa.",
+    "koje ti je ime": "Ime mi je Noa.",
 
     "ko te je napravio": "Napravio me je tim sejMi iz Hrvatske.",
     "ko te je stvorio": "Stvorio me je tim stručnjaka iz sejMi tima.",
@@ -213,7 +213,12 @@ COMMANDS: Dict[str, str] = {
 
 
     "pozdrav": "Pozdrav! Kako vam mogu pomoći?",
-    "bok": "Bok! Kako vam mogu pomoći?"
+    "bok": "Bok! Kako vam mogu pomoći?",
+    "ej": "Ej! Kako vam mogu pomoći?",
+    "hej": "Hej! Kako vam mogu pomoći?",
+    "e": "Hej!",
+    "ee": "Hej!",
+    
 }
 
 WEBSITES = {
