@@ -91,9 +91,9 @@
                 <img src="assets/djeli.png" alt="Share" class="header-icon share-icon" id="shareButton">
                 <div class="share-modal" id="shareModal">
                     <div class="share-content">
-                        <div class="qr-code" id="qrCode"></div>
+                        <img src="assets/qr.png" alt="QR Code" class="qr-code">
                         <div class="share-link">
-                            <input type="text" readonly id="shareLink">
+                            <input type="text" readonly id="shareLink" value="">
                             <button id="copyButton">Kopiraj</button>
                         </div>
                     </div>
@@ -104,15 +104,14 @@
                 <div class="help-modal" id="helpModal">
                     <div class="help-content">
                         <h3>Pomoć pri korištenju</h3>
-                        <p>Ako imate poteškoća s glasovnim asistentom, molimo provjerite sljedeće:</p>
+                        <p>Kako provjeriti TTS postavke:</p>
                         <ol>
-                            <li>Provjerite jesu li TTS (Text-to-Speech) postavke omogućene na vašem uređaju</li>
-                            <li>U postavkama uređaja pronađite "Pristupačnost" ili "Accessibility"</li>
-                            <li>Pronađite "Text-to-Speech" postavke</li>
-                            <li>Osigurajte da je instaliran hrvatski jezični paket</li>
-                            <li>Provjerite je li glasnoća medija uključena</li>
+                            <li>Otvorite postavke vašeg uređaja</li>
+                            <li>Pronađite "Pristupačnost" (Accessibility)</li>
+                            <li>Potražite "Text-to-Speech" opcije</li>
+                            <li>Provjerite je li hrvatski jezik instaliran</li>
+                            <li>Testirajte TTS funkcionalnost</li>
                         </ol>
-                        <p>Za dodatnu pomoć, kontaktirajte našu podršku.</p>
                     </div>
                 </div>
             </div>
@@ -137,7 +136,6 @@
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrcode.js/qrcode.min.js"></script>
     <script src="audioVisualizer.js"></script>
     <script src="script.js"></script>
     
