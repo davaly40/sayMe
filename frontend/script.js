@@ -243,36 +243,39 @@ async function speak(text) {
 
         updateState('speaking');
 
-        // Connect audio to visualizer
+        // Connect audio to visualizer with improved audio routing
         if (visualizer && visualizer.audioContext) {
             const audioContext = visualizer.audioContext;
-            const source = audioContext.createMediaStreamSource(await createSpeechStream(utterance));
-            source.connect(visualizer.analyser);
-        }
-
-        await new Promise((resolve) => {
+            
+            // Create audio source from utterance
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(visualizer.analyser);
+            visualizer.analyser.connect(audioContext.destination);
+            
+            utterance.onstart = () => {
+                oscillator.start();
+                visualizer.startVisualization();
+            };
+            
             utterance.onend = () => {
+                oscillator.stop();
                 setTimeout(() => {
                     updateState(null);
-                    resolve();
                 }, 500);
             };
             
-            utterance.onstart = () => {
-                if (visualizer) {
-                    visualizer.shrink = 0.8; // Initial shrink when speaking starts
-                }
+            utterance.onboundary = (event) => {
+                // Modulate gain for visualization
+                gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+                visualizer.triggerWord(utterance.text.length);
             };
-            
-            utterance.onboundary = () => {
-                if (visualizer) {
-                    // Pulse effect on word boundaries
-                    visualizer.triggerWord(utterance.text.length);
-                }
-            };
-            
-            speechSynthesis.speak(utterance);
-        });
+        }
+
+        speechSynthesis.speak(utterance);
 
     } catch (error) {
         console.error('Speak error:', error);

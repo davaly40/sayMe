@@ -1,420 +1,178 @@
 class BlobVisualizer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
-        this.gl = this.canvas.getContext('webgl');
-        if (!this.gl) {
-            console.error('WebGL nije podržan');
-            return;
-        }
-        this.isInitialized = false;
-        this.shrink = 1.0; // 1 = full size, lower values mean smaller circle
-        this.targetSize = 1.0;  // Target size for smooth animation
-        this.currentSize = 1.0; // Current size of circle
-        this.recoverySpeed = 0.02; // Speed at which circle grows back
-        this.shrinkSpeed = 0.1;    // Speed at which circle shrinks
-        this.rings = []; // Track active rings
-        this.lastRingTime = 0;
-        this.ringInterval = 300; // ms between ring spawns
-        this.isActive = true; // Always animate, even when idle
-        this.waves = [];  // Array to store active wave rings
-        this.lastSize = 1.0;  // Track last frame's size
-        this.sizeChangeThreshold = 0.01;  // Minimum size change to spawn wave
-        this.maxWaves = 15;  // Maximum number of concurrent waves
-        this.particles = []; // Za lebdeće čestice
-        this.maxParticles = 20;
-        this.glowIntensity = 0.0; // Za dinamički glow efekt
-        this.audioInitialized = false;
-        this.lastAudioLevel = 0;
+        this.ctx = this.canvas.getContext('2d');
+        this.audioContext = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.shrink = 1;
+        this.radius = 50;
+        this.state = 0; // 0: idle, 1: speaking, 2: listening, 3: thinking
+        this.particles = [];
+        this.lastTime = 0;
+        this.isActive = false;
     }
 
     async init() {
-        if (this.isInitialized) return;
-        
         try {
-            // Initialize WebGL first
-            this.setupShaders();
-            this.setupBuffers();
-            this.resize();
-            
-            // Then initialize audio context
-            await this.initAudioContext();
-            
-            this.isInitialized = true;
-            console.log('Visualizer initialized successfully');
-        } catch (error) {
-            console.error('Error initializing visualizer:', error);
-            throw error;
-        }
-    }
-
-    async initAudioContext() {
-        try {
-            if (this.audioContext) {
-                await this.audioContext.close();
-            }
-            
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 256;
-            this.analyser.smoothingTimeConstant = 0.7;
-            this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
             
-            // Ukloni oscilator
-            this.gainNode = this.audioContext.createGain();
-            this.gainNode.gain.value = 0.0; // Potpuno utišano
+            // Initialize particles
+            for (let i = 0; i < 12; i++) {
+                this.particles.push({
+                    angle: (i / 12) * Math.PI * 2,
+                    radius: this.radius,
+                    velocity: 0,
+                    amplitude: 1
+                });
+            }
             
-            this.gainNode.connect(this.analyser);
-            this.audioInitialized = true;
+            return true;
         } catch (error) {
-            console.error('Audio initialization error:', error);
+            console.error('Audio context initialization failed:', error);
+            return false;
         }
+    }
+
+    setState(newState) {
+        this.state = newState;
     }
 
     stopAllAudio() {
         if (this.audioContext) {
-            this.gainNode.gain.value = 0;
-            if (this.oscillator) {
-                this.oscillator.stop();
-                this.oscillator.disconnect();
-            }
+            this.analyser.disconnect();
         }
-    }
-
-    setupShaders() {
-        const vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER);
-        this.gl.shaderSource(vertexShader, `
-            attribute vec2 position;
-            void main() {
-                gl_Position = vec4(position, 0.0, 1.0);
-            }
-        `);
-        this.gl.compileShader(vertexShader);
-
-        const fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER);
-        this.gl.shaderSource(fragmentShader, `
-            precision highp float;
-            uniform float time;
-            uniform float circleSize;
-            uniform float audioLevel;
-            
-            const vec3 COLOR1 = vec3(0.0, 1.0, 0.584);  // Primary green
-            const vec3 COLOR2 = vec3(0.0, 0.8, 1.0);    // Accent blue
-            const float PI = 3.14159265359;
-
-            // Utility functions
-            vec3 mod289(vec3 x) {
-                return x - floor(x * (1.0 / 289.0)) * 289.0;
-            }
-
-            vec2 mod289(vec2 x) {
-                return x - floor(x * (1.0 / 289.0)) * 289.0;
-            }
-
-            vec3 permute(vec3 x) {
-                return mod289(((x*34.0)+1.0)*x);
-            }
-
-            // Simplified 3D noise
-            float snoise(vec2 v) {
-                const vec4 C = vec4(0.211324865405187,
-                                  0.366025403784439,
-                                 -0.577350269189626,
-                                  0.024390243902439);
-                
-                vec2 i  = floor(v + dot(v, C.yy));
-                vec2 x0 = v -   i + dot(i, C.xx);
-                vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-                vec4 x12 = x0.xyxy + C.xxzz;
-                x12.xy -= i1;
-                
-                i = mod289(i);
-                vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0))
-                    + i.x + vec3(0.0, i1.x, 1.0));
-                
-                vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
-                m = m*m;
-                m = m*m;
-                
-                vec3 x = 2.0 * fract(p * C.www) - 1.0;
-                vec3 h = abs(x) - 0.5;
-                vec3 ox = floor(x + 0.5);
-                vec3 a0 = x - ox;
-                
-                m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
-                
-                vec3 g;
-                g.x  = a0.x  * x0.x  + h.x  * x0.y;
-                g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-                return 130.0 * dot(m, g);
-            }
-            
-            void main() {
-                vec2 uv = (gl_FragCoord.xy / vec2(300.0)) * 2.0 - 1.0;
-                float dist = length(uv);
-                
-                // Dynamic circle with noise distortion
-                float noiseTime = time * 0.5;
-                float noiseValue = snoise(uv + noiseTime) * 0.1 * audioLevel;
-                
-                // Base circle radius with audio reactivity
-                float radius = 0.6 * circleSize;
-                radius += audioLevel * 0.2 * sin(dist * 8.0 - time * 2.0);
-                radius += noiseValue;
-                
-                // Smooth circle edge
-                float circle = smoothstep(radius + 0.02, radius - 0.02, dist);
-                
-                // Energy waves
-                float energy = 0.0;
-                for(int i = 0; i < 3; i++) {
-                    float angle = time * (0.5 + float(i) * 0.2) + float(i) * PI * 2.0 / 3.0;
-                    vec2 dir = vec2(cos(angle), sin(angle));
-                    float pulse = sin(dot(uv, dir) * 10.0 - time * 3.0) * 0.5 + 0.5;
-                    energy += pulse * smoothstep(radius + 0.1, radius - 0.1, dist) * audioLevel;
-                }
-                
-                // Ripple effect
-                float ripple = sin(dist * 20.0 - time * 5.0) * audioLevel * 0.1;
-                
-                // Combine effects
-                float alpha = circle + energy * 0.3 + ripple;
-                
-                // Color variation
-                vec3 finalColor = mix(COLOR1, COLOR2, energy + noiseValue);
-                
-                // Add glow
-                float glow = exp(-dist * 3.0) * (0.3 + audioLevel * 0.3);
-                finalColor += glow * COLOR1;
-                
-                gl_FragColor = vec4(finalColor, alpha);
-            }
-        `);
-        this.gl.compileShader(fragmentShader);
-
-        this.program = this.gl.createProgram();
-        this.gl.attachShader(this.program, vertexShader);
-        this.gl.attachShader(this.program, fragmentShader);
-        this.gl.linkProgram(this.program);
-        this.gl.useProgram(this.program);
-
-        // Add blend mode for glow effect
-        this.gl.enable(this.gl.BLEND);
-        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-
-        // Add shader compilation check
-        const vertStatus = this.gl.getShaderParameter(vertexShader, this.gl.COMPILE_STATUS);
-        const fragStatus = this.gl.getShaderParameter(fragmentShader, this.gl.COMPILE_STATUS);
-        
-        if (!vertStatus) {
-            throw new Error(this.gl.getShaderInfoLog(vertexShader));
-        }
-        if (!fragStatus) {
-            throw new Error(this.gl.getShaderInfoLog(fragmentShader));
-        }
-
-        // Check program linking
-        if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) {
-            throw new Error(this.gl.getProgramInfoLog(this.program));
-        }
-
-        // Add state uniform location
-        this.stateLocation = this.gl.getUniformLocation(this.program, 'state');
-        this.gl.uniform1i(this.stateLocation, 0); // Default to idle state
-        this.shrinkLocation = this.gl.getUniformLocation(this.program, 'shrink');  // New uniform location
-        this.circleSizeLocation = this.gl.getUniformLocation(this.program, 'circleSize'); // Add size uniform location
-        this.ringsLocation = this.gl.getUniformLocation(this.program, 'rings');
-        this.activeRingsLocation = this.gl.getUniformLocation(this.program, 'activeRings');
-        this.wavesLocation = this.gl.getUniformLocation(this.program, 'waves');
-        this.activeWavesLocation = this.gl.getUniformLocation(this.program, 'activeWaves');
-        this.glowIntensityLocation = this.gl.getUniformLocation(this.program, 'glowIntensity');
-        this.audioLevelLocation = this.gl.getUniformLocation(this.program, 'audioLevel');
-    }
-
-    setupBuffers() {
-        const vertices = new Float32Array([
-            -1, -1,
-            1, -1,
-            -1, 1,
-            1, 1
-        ]);
-        
-        const buffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, buffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
-        
-        const position = this.gl.getAttribLocation(this.program, 'position');
-        this.gl.enableVertexAttribArray(position);
-        this.gl.vertexAttribPointer(position, 2, this.gl.FLOAT, false, 0, 0);
-        
-        this.timeLocation = this.gl.getUniformLocation(this.program, 'time');
-        this.frequenciesLocation = this.gl.getUniformLocation(this.program, 'frequencies');
-    }
-
-    resize() {
-        this.canvas.width = 300;
-        this.canvas.height = 300;
-        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    connectAudioSource(source) {
-        if (!this.isInitialized) {
-            console.error('Visualizer not initialized');
-            return;
-        }
-        
-        try {
-            // Disconnect any existing connections
-            if (this.currentSource) {
-                this.currentSource.disconnect();
-            }
-            
-            this.currentSource = source;
-            source.connect(this.audioGain);
-            console.log('Audio source connected successfully');
-        } catch (error) {
-            console.error('Error connecting audio source:', error);
-        }
-    }
-
-    // New method to trigger a word event.
-    // wordLength: number of characters in the spoken word.
-    triggerWord(wordLength) {
-        // Calculate intensity factor: longer word -> lower circle (more shrink)
-        const intensity = Math.min(wordLength * 0.05, 0.7); // cap intensity so circle not too small
-        // Set shrink value to reflect shrink; lower value means smaller circle.
-        this.shrink = Math.min(this.shrink, 1.0 - intensity);
-    }
-
-    // Called when a word starts
-    onWordStart(wordLength) {
-        // Calculate how much to shrink based on word length
-        const shrinkAmount = Math.min(0.3 + (wordLength * 0.02), 0.7);
-        this.targetSize = 1.0 - shrinkAmount;
-    }
-
-    // Called when there's silence
-    onSilence() {
-        this.targetSize = 1.0;
     }
 
     startVisualization() {
-        if (!this.audioInitialized) {
-            this.initAudioContext().catch(console.error);
-        }
-        this.isAnimating = true;
-        // Resetiraj prethodne frekvencije za glatki početak
-        this.prevFrequencies = null;
+        this.isActive = true;
         this.animate();
     }
 
     stopVisualization() {
-        // Postupno zaustavljanje
-        const fadeOut = () => {
-            if (this.prevFrequencies) {
-                let allZero = true;
-                for (let i = 0; i < this.prevFrequencies.length; i++) {
-                    this.prevFrequencies[i] *= 0.95;
-                    if (this.prevFrequencies[i] > 0.01) allZero = false;
-                }
-                if (!allZero) {
-                    requestAnimationFrame(fadeOut);
-                } else {
-                    this.isAnimating = false;
-                }
+        this.isActive = false;
+    }
+
+    animate(currentTime = 0) {
+        if (!this.isActive) return;
+
+        const deltaTime = (currentTime - this.lastTime) / 1000;
+        this.lastTime = currentTime;
+
+        // Get audio data
+        if (this.state === 1 && this.analyser) { // Only when speaking
+            this.analyser.getByteFrequencyData(this.dataArray);
+            // Normalize the data
+            const average = Array.from(this.dataArray).reduce((a, b) => a + b, 0) / this.dataArray.length;
+            this.radius = 50 + (average * 0.5); // Base radius + audio intensity
+        }
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.save();
+        this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+
+        // Draw equalizer circles
+        if (this.state === 1 && this.dataArray) {
+            this.drawEqualizer();
+        }
+
+        // Draw base circle and particles
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, this.radius * this.shrink, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(0, 255, 149, 0.1)';
+        this.ctx.fill();
+
+        this.updateParticles(deltaTime);
+        this.drawParticles();
+
+        this.ctx.restore();
+        requestAnimationFrame(this.animate.bind(this));
+    }
+
+    drawEqualizer() {
+        const bands = 32; // Number of frequency bands to display
+        const step = Math.floor(this.dataArray.length / bands);
+        
+        for (let i = 0; i < bands; i++) {
+            const frequency = this.dataArray[i * step];
+            const normalized = frequency / 256.0; // Normalize to 0-1
+            const length = normalized * 50; // Max length of equalizer bars
+            
+            const angle = (i / bands) * Math.PI * 2;
+            const x1 = Math.cos(angle) * (this.radius - 20);
+            const y1 = Math.sin(angle) * (this.radius - 20);
+            const x2 = Math.cos(angle) * (this.radius - 20 + length);
+            const y2 = Math.sin(angle) * (this.radius - 20 + length);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.strokeStyle = `rgba(0, 255, 149, ${normalized * 0.8})`;
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+    }
+
+    updateParticles(deltaTime) {
+        const targetAmplitude = this.state === 1 ? 1.5 : 
+                              this.state === 2 ? 1.2 :
+                              this.state === 3 ? 1.3 : 1;
+
+        this.particles.forEach((particle, i) => {
+            // Oscillation frequency varies by state
+            const frequency = this.state === 1 ? 2 : 
+                            this.state === 2 ? 3 :
+                            this.state === 3 ? 1.5 : 0.5;
+
+            particle.amplitude += (targetAmplitude - particle.amplitude) * deltaTime * 2;
+            particle.radius = this.radius * (1 + 
+                Math.sin(Date.now() * 0.003 + i * 0.5) * 0.2 * particle.amplitude);
+
+            if (this.state === 1) { // Speaking
+                particle.angle += deltaTime * 0.5;
+            } else if (this.state === 2) { // Listening
+                particle.angle += deltaTime * 0.3;
+            } else if (this.state === 3) { // Thinking
+                particle.angle += Math.sin(Date.now() * 0.001 + i) * deltaTime * 0.5;
             }
-        };
-        fadeOut();
-    }
-
-    setState(state) {
-        // 0: idle, 1: speaking, 2: listening
-        this.gl.uniform1i(this.stateLocation, state);
-    }
-
-    spawnRing() {
-        if (this.rings.length < 10) {
-            this.rings.push({ radius: 0.6, speed: 0.003 });
-        }
-    }
-
-    updateRings() {
-        const now = performance.now();
-        
-        // Spawn new rings based on speech or periodic timing
-        if (now - this.lastRingTime > this.ringInterval) {
-            this.spawnRing();
-            this.lastRingTime = now;
-        }
-        
-        // Update and filter rings
-        this.rings = this.rings
-            .map(ring => ({
-                ...ring,
-                radius: ring.radius + ring.speed
-            }))
-            .filter(ring => ring.radius < 2.0); // Remove rings that are too big
-    }
-
-    spawnWave(intensity) {
-        if (this.waves.length >= this.maxWaves) return;
-        
-        // Suptilniji valovi s manjom brzinom
-        this.waves.push({
-            radius: 0.6 * this.currentSize,
-            intensity: Math.min(intensity * 1.5, 0.7),  // Smanjen intenzitet
-            lifetime: 2.0,  // Duži životni vijek za glađi fade
-            birthTime: performance.now() / 1000,
-            speed: 0.3 + intensity * 0.2  // Sporije širenje
         });
     }
 
-    updateWaves(currentTime) {
-        // Remove dead waves
-        this.waves = this.waves.filter(wave => {
-            const age = currentTime - wave.birthTime;
-            return age < wave.lifetime;
-        });
-
-        // Update remaining waves
-        this.waves.forEach(wave => {
-            wave.radius += wave.speed * (1/60);  // Assuming 60fps
-        });
-    }
-
-    updateGlowIntensity() {
-        // Dinamički mijenjaj intenzitet glowa
-        this.glowIntensity = 0.3 + 0.2 * Math.sin(performance.now() / 1000);
-        this.gl.uniform1f(this.glowIntensityLocation, this.glowIntensity);
-    }
-
-    animate() {
-        if (!this.isAnimating || !this.isInitialized) return;
-        
-        try {
-            const currentTime = performance.now() / 1000;
+    drawParticles() {
+        this.ctx.beginPath();
+        this.particles.forEach((particle, i) => {
+            const x = Math.cos(particle.angle) * particle.radius;
+            const y = Math.sin(particle.angle) * particle.radius;
             
-            // Dohvati audio podatke
-            if (this.analyser) {
-                this.analyser.getByteFrequencyData(this.frequencyData);
-                const sum = this.frequencyData.reduce((a, b) => a + b, 0);
-                const avg = sum / this.frequencyData.length;
-                this.lastAudioLevel = avg / 256;
+            if (i === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
             }
-            
-            // Smoothing
-            const targetSize = 0.8 + (this.lastAudioLevel * 0.4);
-            this.currentSize += (targetSize - this.currentSize) * 0.1;
-            
-            // Update uniforms
-            this.gl.uniform1f(this.timeLocation, currentTime);
-            this.gl.uniform1f(this.circleSizeLocation, this.currentSize);
-            this.gl.uniform1f(this.audioLevelLocation, this.lastAudioLevel);
-            
-            this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-        } catch (error) {
-            console.error('Animation error:', error);
-        }
+        });
+        this.ctx.closePath();
         
-        requestAnimationFrame(() => this.animate());
+        // Create gradient
+        const gradient = this.ctx.createRadialGradient(0, 0, this.radius * 0.5, 0, 0, this.radius * 2);
+        gradient.addColorStop(0, 'rgba(0, 255, 149, 0.4)');
+        gradient.addColorStop(1, 'rgba(0, 255, 149, 0.1)');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.fill();
+        
+        // Add glow effect
+        this.ctx.strokeStyle = 'rgba(0, 255, 149, 0.5)';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+    }
+
+    triggerWord(intensity) {
+        this.shrink = 0.8 + (intensity * 0.001);
+        setTimeout(() => {
+            this.shrink = 1;
+        }, 100);
     }
 }
