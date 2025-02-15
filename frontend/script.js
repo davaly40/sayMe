@@ -349,6 +349,15 @@ window.onload = async function() {
     });
 
     await loadVoices();
+    
+    // Initialize visualization
+    const audioCircle = document.querySelector('.audio-circle');
+    if (audioCircle) {
+        const visualizer = audioCircle.querySelector('.visualizer-container');
+        if (visualizer) {
+            visualizer.style.display = 'flex';
+        }
+    }
 };
 
 function initializeModals() {
@@ -749,6 +758,13 @@ function updateVisualization(state) {
     
     if (state) {
         circle.classList.add(state);
+        console.log('Setting state:', state); // Debug log
+        
+        // Ensure visualization is visible
+        const visualizer = circle.querySelector('.visualizer-container');
+        if (visualizer) {
+            visualizer.style.display = 'flex';
+        }
         
         if (state === 'speaking') {
             animateVoicePath();
@@ -758,7 +774,12 @@ function updateVisualization(state) {
 
 function animateVoicePath() {
     const path = document.querySelector('.voice-path');
-    if (!path) return;
+    if (!path) {
+        console.error('Voice path not found'); // Debug log
+        return;
+    }
+
+    console.log('Animating voice path'); // Debug log
 
     let phase = 0;
     const amplitude = 30;
