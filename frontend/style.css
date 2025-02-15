@@ -61,14 +61,14 @@ body {
 
 .share-container, .help-container {
     position: relative;
-    z-index: 1000; /* Osiguraj da su kontejneri iznad ostalih elemenata */
+    z-index: 1001; /* Osiguraj da su kontejneri iznad ostalih elemenata */
 }
 
 .share-modal, .help-modal {
     position: fixed; /* Promijenjeno s absolute na fixed */
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) !important; /* Dodali !important */
     background: rgba(15, 15, 15, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
@@ -84,13 +84,28 @@ body {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 999;
+}
+
+.modal-overlay.active {
+    display: block;
+}
+
 /* Uklanjamo strelicu jer će modal biti na sredini */
 .share-modal::before, .help-modal::before {
     display: none;
 }
 
 .share-modal.active, .help-modal.active {
-    display: block;
+    display: block !important; /* Dodali !important */
     opacity: 1;
     transform: translateY(0);
     animation: modalFadeIn 0.3s ease;
