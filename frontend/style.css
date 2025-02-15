@@ -934,130 +934,105 @@ button:hover {
 
 .visualizer-container {
     position: relative;
-    width: 180px;
-    height: 180px;
+    width: 150px;
+    height: 150px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.glow-ring {
+.morph-shape {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: #4A90E2;  /* Blue color for idle state */
+    border-radius: 12px;  /* Rounded corners for square */
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wave-overlay {
     position: absolute;
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    border: 2px solid var(--accent);
-    opacity: 0.1;
-    transition: all 0.3s ease;
-}
-
-.inner-circle {
-    position: absolute;
-    width: 80%;
-    height: 80%;
-    border-radius: 50%;
-    background: rgba(0, 255, 149, 0.05);
-    backdrop-filter: blur(5px);
-    border: 1px solid rgba(0, 255, 149, 0.1);
-}
-
-.voice-dots {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.voice-dots span {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: var(--accent);
-    border-radius: 50%;
-    transform-origin: center 45px;
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: all 0.5s ease;
+    pointer-events: none;
 }
 
-.ai-core {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background: var(--accent);
+/* Speaking State */
+.audio-circle.speaking .morph-shape {
+    width: 120px;
+    height: 120px;
+    background: white;
     border-radius: 50%;
-    box-shadow: 0 0 20px var(--accent);
+    box-shadow: 0 0 30px rgba(0, 255, 149, 0.2);
 }
 
-/* States */
-.audio-circle.listening .glow-ring {
-    animation: pulseGlow 2s infinite;
-    opacity: 0.3;
-}
-
-.audio-circle.listening .voice-dots span {
-    animation: listenPulse 1.5s infinite;
-}
-
-.audio-circle.speaking .voice-dots span {
+.audio-circle.speaking .wave-overlay {
     opacity: 1;
-    animation: speakPulse 1s infinite;
+    animation: speakingWaves 2s ease-out infinite;
+    background: radial-gradient(
+        circle at center,
+        transparent 30%,
+        rgba(0, 255, 149, 0.4) 50%,
+        transparent 70%
+    );
 }
 
-.audio-circle.speaking .ai-core {
-    animation: corePulse 1s infinite;
+/* Thinking State */
+.audio-circle.thinking .morph-shape {
+    width: 120px;
+    height: 120px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.8;
 }
 
-.audio-circle.thinking .voice-dots span {
+.audio-circle.thinking .wave-overlay {
     opacity: 0.5;
-    animation: thinkRotate 2s infinite;
+    animation: thinkingWaves 3s ease-out infinite;
+    background: radial-gradient(
+        circle at center,
+        transparent 40%,
+        rgba(0, 255, 149, 0.2) 60%,
+        transparent 80%
+    );
 }
 
-/* Position dots in a circle */
-.voice-dots span:nth-child(1) { transform: rotate(0deg) translateY(-45px); }
-.voice-dots span:nth-child(2) { transform: rotate(45deg) translateY(-45px); }
-.voice-dots span:nth-child(3) { transform: rotate(90deg) translateY(-45px); }
-.voice-dots span:nth-child(4) { transform: rotate(135deg) translateY(-45px); }
-.voice-dots span:nth-child(5) { transform: rotate(180deg) translateY(-45px); }
-.voice-dots span:nth-child(6) { transform: rotate(225deg) translateY(-45px); }
-.voice-dots span:nth-child(7) { transform: rotate(270deg) translateY(-45px); }
-.voice-dots span:nth-child(8) { transform: rotate(315deg) translateY(-45px); }
-
-/* Animations */
-@keyframes pulseGlow {
-    0% { transform: scale(1); opacity: 0.3; }
-    50% { transform: scale(1.1); opacity: 0.1; }
-    100% { transform: scale(1); opacity: 0.3; }
+@keyframes speakingWaves {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.3;
+    }
+    100% {
+        transform: scale(0.8);
+        opacity: 0.8;
+    }
 }
 
-@keyframes listenPulse {
-    0% { transform: rotate(var(--rotation)) translateY(-45px) scale(1); opacity: 0.3; }
-    50% { transform: rotate(var(--rotation)) translateY(-45px) scale(1.5); opacity: 0.7; }
-    100% { transform: rotate(var(--rotation)) translateY(-45px) scale(1); opacity: 0.3; }
-}
-
-@keyframes speakPulse {
-    0% { height: 4px; }
-    50% { height: 20px; opacity: 1; }
-    100% { height: 4px; }
-}
-
-@keyframes corePulse {
-    0% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.5); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.5; }
-}
-
-@keyframes thinkRotate {
-    0% { opacity: 0.2; }
-    50% { opacity: 0.8; }
-    100% { opacity: 0.2; }
+@keyframes thinkingWaves {
+    0% {
+        transform: scale(0.9);
+        opacity: 0.3;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.1;
+    }
+    100% {
+        transform: scale(0.9);
+        opacity: 0.3;
+    }
 }
 
 /* Remove old visualization styles */
 .spectrum-container, .spectrum-bars, .wave-container,
-.wave-circle, .wave, .dots-container {
+.wave-circle, .wave, .dots-container, .glow-ring,
+.inner-circle, .voice-dots, .ai-core {
     display: none;
 }

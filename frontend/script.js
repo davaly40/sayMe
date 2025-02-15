@@ -756,31 +756,12 @@ function updateVisualization(state) {
     const circle = document.querySelector('.audio-circle');
     if (!circle) return;
 
-    // Reset states
+    // Reset all states
     circle.classList.remove('speaking', 'thinking', 'listening');
     
     if (state) {
         circle.classList.add(state);
-        
-        if (state === 'speaking') {
-            animateVoiceDots();
-        }
     }
-}
-
-function animateVoiceDots() {
-    const dots = document.querySelectorAll('.voice-dots span');
-    dots.forEach((dot, i) => {
-        dot.style.animationDelay = `${i * 0.1}s`;
-    });
-}
-
-function initializeVisualization() {
-    const dots = document.querySelectorAll('.voice-dots span');
-    dots.forEach((dot, i) => {
-        dot.style.setProperty('--rotation', `${i * 45}deg`);
-        dot.style.transform = `rotate(${i * 45}deg) translateY(-45px)`;
-    });
 }
 
 // Add to window.onload
