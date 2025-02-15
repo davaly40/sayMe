@@ -631,7 +631,6 @@ button:hover {
 
 .audio-circle.speaking .circle-pulse {
     animation: pulsate 2s ease-out infinite;
-    opacity: 0.5;  /* Povećana vidljivost */
 }
 
 .wave-container {

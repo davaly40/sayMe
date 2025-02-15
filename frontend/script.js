@@ -3,6 +3,7 @@ let socket;
 const audioCircle = document.getElementById('audioCircle');
 
 function updateState(state) {
+    updateVisualization(state);
     audioCircle.classList.remove('listening', 'speaking', 'thinking');
     const button = document.getElementById('startButton');
     
@@ -738,3 +739,50 @@ function setAlarm(hours, minutes) {
 }
 
 // ...rest of the existing code...
+
+function updateVisualization(state) {
+    const circle = document.querySelector('.audio-circle');
+    if (!circle) return;
+
+    // Reset all states
+    circle.classList.remove('speaking', 'thinking', 'listening');
+    
+    if (state) {
+        circle.classList.add(state);
+        
+        if (state === 'speaking') {
+            animateVoicePath();
+        }
+    }
+}
+
+function animateVoicePath() {
+    const path = document.querySelector('.voice-path');
+    if (!path) return;
+
+    let phase = 0;
+    const amplitude = 30;
+    const frequency = 0.02;
+    const points = 100;
+
+    function updatePath() {
+        if (!document.querySelector('.audio-circle.speaking')) return;
+
+        let d = `M 150,150 `;
+        for (let i = 0; i < points; i++) {
+            const angle = (i / points) * Math.PI * 2;
+            const noise = Math.sin(phase + i * frequency) * amplitude;
+            const radius = 80 + noise;
+            const x = 150 + Math.cos(angle) * radius;
+            const y = 150 + Math.sin(angle) * radius;
+            d += `${i === 0 ? 'M' : 'L'} ${x},${y} `;
+        }
+        d += 'Z';
+        path.setAttribute('d', d);
+        
+        phase += 0.1;
+        requestAnimationFrame(updatePath);
+    }
+
+    updatePath();
+}
