@@ -46,6 +46,7 @@ body {
     height: 24px;
     cursor: pointer;
     transition: all 0.3s ease;
+    user-select: none; /* Spriječi selekciju ikone */
 }
 
 .share-icon {
@@ -59,6 +60,7 @@ body {
 
 .share-container, .help-container {
     position: relative;
+    z-index: 1000; /* Osiguraj da su kontejneri iznad ostalih elemenata */
 }
 
 .share-modal, .help-modal {
@@ -70,11 +72,14 @@ body {
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    display: none;
+    display: none; /* Važno: početno stanje je skriveno */
     z-index: 1000;
     backdrop-filter: blur(10px);
     min-width: 280px;
     max-width: 320px;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 /* Strelica na vrhu modala */
@@ -93,7 +98,8 @@ body {
 
 .share-modal.active, .help-modal.active {
     display: block;
-    animation: modalFadeIn 0.2s ease;
+    opacity: 1;
+    transform: translateY(0);
 }
 
 @keyframes modalFadeIn {

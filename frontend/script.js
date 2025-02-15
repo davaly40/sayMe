@@ -361,8 +361,7 @@ window.onload = async function() {
     await loadVoices();
 };
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Dohvati elemente
+function initializeModals() {
     const shareButton = document.getElementById('shareButton');
     const shareModal = document.getElementById('shareModal');
     const helpButton = document.getElementById('helpButton');
@@ -370,12 +369,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const copyButton = document.getElementById('copyButton');
     const shareLinkInput = document.getElementById('shareLink');
 
+    if (!shareButton || !shareModal || !helpButton || !helpModal) {
+        console.error('Modal elements not found');
+        return;
+    }
+
     // Postavi trenutnu URL adresu
-    shareLinkInput.value = window.location.href;
+    if (shareLinkInput) {
+        shareLinkInput.value = window.location.href;
+    }
 
     // Generiraj QR kod
-    if (document.getElementById('qrCode')) {
-        new QRCode(document.getElementById('qrCode'), {
+    const qrCodeElement = document.getElementById('qrCode');
+    if (qrCodeElement) {
+        new QRCode(qrCodeElement, {
             text: window.location.href,
             width: 200,
             height: 200,
@@ -385,53 +392,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Funkcija za zatvaranje svih modala
-    function closeAllModals() {
-        shareModal.classList.remove('active');
-        helpModal.classList.remove('active');
-    }
-
-    // Event listener za share button
+    // Event listeneri za modale
     shareButton.addEventListener('click', function(e) {
         e.stopPropagation();
-        closeAllModals(); // Zatvori sve modale prije otvaranja novog
-        shareModal.classList.add('active');
+        console.log('Share button clicked'); // Debug log
+        helpModal.classList.remove('active');
+        shareModal.classList.toggle('active');
     });
 
-    // Event listener za help button
     helpButton.addEventListener('click', function(e) {
         e.stopPropagation();
-        closeAllModals(); // Zatvori sve modale prije otvaranja novog
-        helpModal.classList.add('active');
+        console.log('Help button clicked'); // Debug log
+        shareModal.classList.remove('active');
+        helpModal.classList.toggle('active');
     });
 
-    // Event listener za kopiranje linka
-    copyButton.addEventListener('click', async function() {
-        try {
-            await navigator.clipboard.writeText(shareLinkInput.value);
-            copyButton.textContent = 'Kopirano!';
-            setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    });
+    // Kopiraj link
+    if (copyButton) {
+        copyButton.addEventListener('click', async function() {
+            try {
+                await navigator.clipboard.writeText(shareLinkInput.value);
+                copyButton.textContent = 'Kopirano!';
+                setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+        });
+    }
 
-    // Zatvori modale klikom bilo gdje na dokumentu
+    // Zatvori modale klikom izvan
     document.addEventListener('click', function(e) {
         if (!shareButton.contains(e.target) && 
             !shareModal.contains(e.target) && 
             !helpButton.contains(e.target) && 
             !helpModal.contains(e.target)) {
-            closeAllModals();
+            shareModal.classList.remove('active');
+            helpModal.classList.remove('active');
         }
     });
 
-    // Zatvori modale na Escape tipku
+    // Zatvori modale na ESC
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            closeAllModals();
+            shareModal.classList.remove('active');
+            helpModal.classList.remove('active');
         }
     });
+}
+
+// Dodajmo inicijalizaciju modala u DOMContentLoaded event
+document.addEventListener('DOMContentLoaded', function() {
+    initializeModals();
+    // ...rest of your DOMContentLoaded code...
 });
 
 async function handleCameraRequest(isFrontCamera = false, withTimer = false) {
