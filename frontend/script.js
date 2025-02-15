@@ -361,6 +361,66 @@ window.onload = async function() {
     await loadVoices();
 };
 
+document.addEventListener('DOMContentLoaded', function() {
+    // Share button functionality
+    const shareButton = document.getElementById('shareButton');
+    const shareModal = document.getElementById('shareModal');
+    const copyButton = document.getElementById('copyButton');
+    const shareLinkInput = document.getElementById('shareLink');
+    
+    // Help button functionality
+    const helpButton = document.getElementById('helpButton');
+    const helpModal = document.getElementById('helpModal');
+    
+    // Set share link
+    shareLinkInput.value = window.location.href;
+    
+    // Generate QR Code
+    const qrCode = new QRCode(document.getElementById('qrCode'), {
+        text: window.location.href,
+        width: 200,
+        height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+    });
+    
+    // Share button click handler
+    shareButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        shareModal.classList.toggle('active');
+        helpModal.classList.remove('active');
+    });
+    
+    // Help button click handler
+    helpButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        helpModal.classList.toggle('active');
+        shareModal.classList.remove('active');
+    });
+    
+    // Copy button functionality
+    copyButton.addEventListener('click', async function() {
+        try {
+            await navigator.clipboard.writeText(shareLinkInput.value);
+            copyButton.textContent = 'Kopirano!';
+            setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    });
+    
+    // Close modals when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!shareModal.contains(e.target) && !shareButton.contains(e.target)) {
+            shareModal.classList.remove('active');
+        }
+        if (!helpModal.contains(e.target) && !helpButton.contains(e.target)) {
+            helpModal.classList.remove('active');
+        }
+    });
+});
+
 async function handleCameraRequest(isFrontCamera = false, withTimer = false) {
     try {
         const constraints = {
