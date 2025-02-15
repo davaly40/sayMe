@@ -485,14 +485,6 @@ def open_website(name: str) -> str:
                 "google": "Google",
                 "maps": "Google Maps",
                 "spotify": "Spotify"
-                "fejs": "Facebook",
-                "insta": "Instagram",
-                "gugl": "Google",
-                "karte": "Google Maps",
-                "navigacija": "Google Maps",
-                "navigaciju": "Google Maps",
-                "fejsbuk": "Facebook",
-                "kanva": "Canva",
 
             }.get(site_name, site_name.capitalize())
             
