@@ -232,11 +232,13 @@ async function speak(text) {
         }
 
         updateState('speaking');
+        updateVisualization('speaking');
 
         await new Promise((resolve) => {
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);
+                    updateVisualization(null);
                     resolve();
                 }, 500);
             };
@@ -247,6 +249,7 @@ async function speak(text) {
     } catch (error) {
         console.error('Speak error:', error);
         updateState(null);
+        updateVisualization(null);
     }
 }
 
@@ -758,52 +761,65 @@ function updateVisualization(state) {
     
     if (state) {
         circle.classList.add(state);
-        console.log('Setting state:', state); // Debug log
-        
-        // Ensure visualization is visible
-        const visualizer = circle.querySelector('.visualizer-container');
-        if (visualizer) {
-            visualizer.style.display = 'flex';
-        }
         
         if (state === 'speaking') {
-            animateVoicePath();
+            animateSpectrum();
         }
     }
 }
 
-function animateVoicePath() {
-    const path = document.querySelector('.voice-path');
-    if (!path) {
-        console.error('Voice path not found'); // Debug log
-        return;
-    }
-
-    console.log('Animating voice path'); // Debug log
-
-    let phase = 0;
-    const amplitude = 30;
-    const frequency = 0.02;
-    const points = 100;
-
-    function updatePath() {
+function animateSpectrum() {
+    const bars = document.querySelectorAll('.spectrum-bar');
+    const maxScale = 2;
+    const minScale = 0.5;
+    
+    function animate() {
         if (!document.querySelector('.audio-circle.speaking')) return;
-
-        let d = `M 150,150 `;
-        for (let i = 0; i < points; i++) {
-            const angle = (i / points) * Math.PI * 2;
-            const noise = Math.sin(phase + i * frequency) * amplitude;
-            const radius = 80 + noise;
-            const x = 150 + Math.cos(angle) * radius;
-            const y = 150 + Math.sin(angle) * radius;
-            d += `${i === 0 ? 'M' : 'L'} ${x},${y} `;
-        }
-        d += 'Z';
-        path.setAttribute('d', d);
         
-        phase += 0.1;
-        requestAnimationFrame(updatePath);
+        bars.forEach(bar => {
+            const scale = minScale + Math.random() * (maxScale - minScale);
+            bar.style.transform = bar.style.transform.replace(
+                /scaleY\([^)]+\)/,
+                `scaleY(${scale})`
+            );
+            bar.style.opacity = 0.3 + (scale - minScale) / (maxScale - minScale) * 0.7;
+        });
+        
+        requestAnimationFrame(animate);
     }
-
-    updatePath();
+    
+    animate();
 }
+
+function createSpectrumBars() {
+    const container = document.querySelector('.spectrum-bars');
+    const barCount = 32;
+    const radius = 100;
+    
+    for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        const angle = (i / barCount) * Math.PI * 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        
+        bar.className = 'spectrum-bar';
+        bar.style.cssText = `
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 2px;
+            height: 20px;
+            background: var(--accent);
+            transform: translate(-50%, -50%) rotate(${angle}rad) translateY(${radius}px);
+            transform-origin: center ${-radius}px;
+            opacity: 0.3;
+        `;
+        
+        container.appendChild(bar);
+    }
+}
+
+// Initialize spectrum bars on load
+window.addEventListener('load', () => {
+    createSpectrumBars();
+});

@@ -115,26 +115,22 @@
     <div class="container">
         <div class="audio-circle" id="audioCircle">
             <div class="visualizer-container">
-                <div class="circle-base"></div>
-                <div class="circle-pulse"></div>
-                <div class="wave-container">
-                    <div class="wave-circle">
-                        <div class="wave"></div>
-                    </div>
+                <!-- Base rings -->
+                <div class="base-ring"></div>
+                <div class="pulse-ring"></div>
+                
+                <!-- Dynamic visualization elements -->
+                <div class="spectrum-container">
+                    <div class="spectrum-center"></div>
+                    <div class="spectrum-bars"></div>
                 </div>
-                <svg class="voice-visualization" viewBox="0 0 300 300">
-                    <defs>
-                        <filter id="gooey">
-                            <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur" />
-                            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="gooey" />
-                        </filter>
-                    </defs>
-                    <path class="voice-path" d="" />
-                </svg>
-                <div class="dots-container">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
+                
+                <!-- State indicators -->
+                <div class="state-indicator">
+                    <div class="thinking-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="listening-wave"></div>
                 </div>
             </div>
         </div>
