@@ -560,3 +560,132 @@ async function handleCommand(text) {
     
     // ...existing code...
 }
+
+// ...existing code...
+
+function handleServerResponse(response) {
+    try {
+        const data = JSON.parse(response);
+        
+        switch(data.type) {
+            case "openCamera":
+                openCamera(data.mode);
+                break;
+            case "setAlarm":
+                setAlarm(data.hours, data.minutes);
+                break;
+            default:
+                // Handle regular text response
+                speak(data.message || response);
+        }
+    } catch (e) {
+        // Not JSON, handle as regular text response
+        speak(response);
+    }
+}
+
+async function openCamera(mode) {
+    try {
+        const constraints = {
+            video: {
+                facingMode: mode === 'front' ? 'user' : 'environment'
+            }
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.style.position = 'fixed';
+        video.style.top = '0';
+        video.style.left = '0';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.zIndex = '1000';
+        
+        document.body.appendChild(video);
+        
+        // Add close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.position = 'fixed';
+        closeBtn.style.top = '20px';
+        closeBtn.style.right = '20px';
+        closeBtn.style.zIndex = '1001';
+        closeBtn.onclick = () => {
+            stream.getTracks().forEach(track => track.stop());
+            video.remove();
+            closeBtn.remove();
+        };
+        document.body.appendChild(closeBtn);
+        
+    } catch (err) {
+        speak("Nažalost, ne mogu pristupiti kameri. Molim vas provjerite dozvole.");
+    }
+}
+
+function setAlarm(hours, minutes) {
+    try {
+        const now = new Date();
+        const alarmTime = new Date();
+        alarmTime.setHours(hours);
+        alarmTime.setMinutes(minutes);
+        alarmTime.setSeconds(0);
+        
+        // If the time is in the past, set it for tomorrow
+        if (alarmTime < now) {
+            alarmTime.setDate(alarmTime.getDate() + 1);
+        }
+
+        // Try to use the native alarm app
+        if (navigator.userAgent.toLowerCase().includes('android')) {
+            // Android intent for alarm
+            const intentUrl = `intent:#Intent;action=android.intent.action.SET_ALARM;` +
+                            `package=com.android.deskclock;` +
+                            `type=vnd.android.cursor.item/alarm;` +
+                            `l.android.intent.extra.alarm.HOUR=${hours};` +
+                            `l.android.intent.extra.alarm.MINUTES=${minutes};` +
+                            `B.android.intent.extra.alarm.SKIP_UI=false;` +
+                            `end`;
+            window.location.href = intentUrl;
+        } else if (navigator.userAgent.toLowerCase().includes('iphone') || 
+                  navigator.userAgent.toLowerCase().includes('ipad')) {
+            // iOS clock app URL scheme
+            window.location.href = `clockapp://alarm/new?hour=${hours}&minutes=${minutes}`;
+        } else {
+            // Fallback za desktop - otvori sistemski kalendar
+            const calendarUrl = createCalendarEventUrl(hours, minutes);
+            window.open(calendarUrl, '_blank');
+        }
+        
+        return `Pokušavam postaviti alarm za ${hours}:${minutes.toString().padStart(2, '0')}`;
+    } catch (error) {
+        console.error('Error setting alarm:', error);
+        return 'Nažalost, ne mogu postaviti alarm na vašem uređaju. Pokušajte ručno.';
+    }
+}
+
+function createCalendarEventUrl(hours, minutes) {
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    if (date < new Date()) {
+        date.setDate(date.getDate() + 1);
+    }
+    
+    const endDate = new Date(date);
+    endDate.setMinutes(endDate.getMinutes() + 1);
+    
+    const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0];
+    
+    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatDate(date)}
+DTEND:${formatDate(endDate)}
+SUMMARY:Alarm
+DESCRIPTION:SayMe Alarm
+END:VEVENT
+END:VCALENDAR`;
+}
+
+// ...rest of the existing code...

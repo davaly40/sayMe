@@ -315,7 +315,9 @@ CITY_NAMES = {
 @dataclass
 class ConversationState:
     waiting_for_city: bool = False
+    waiting_for_alarm_time: bool = False
     last_query_type: Optional[str] = None
+    camera_active: bool = False
 
 conversation_states: Dict[str, ConversationState] = {}
 
@@ -503,6 +505,61 @@ def get_weather_info(city: str, is_tomorrow: bool = False) -> str:
         logger.error(f"Error getting weather: {str(e)}")
         return "Došlo je do greške pri dohvaćanju vremenske prognoze."
 
+def parse_time(text: str) -> Optional[tuple]:
+    """Parse time from text input"""
+    text = text.lower().strip()
+    
+    # Common time patterns in Croatian
+    time_patterns = {
+        r'(\d{1,2})\s*(?:sati|sata|h)(?:\s*i\s*(\d{1,2}))?\s*(?:min(?:uta)?)?': lambda h, m: (int(h), int(m) if m else 0),
+        r'(\d{1,2}):(\d{1,2})': lambda h, m: (int(h), int(m)),
+        r'(\d{1,2})\s*i\s*(\d{1,2})': lambda h, m: (int(h), int(m)),
+        r'u\s*(\d{1,2})(?:\s*(?:sati|sata|h))?': lambda h, _: (int(h), 0),
+    }
+    
+    for pattern, converter in time_patterns.items():
+        match = re.search(pattern, text)
+        if match:
+            try:
+                return converter(*match.groups(0))
+            except ValueError:
+                return None
+    
+    return None
+
+def handle_camera_request(text: str) -> str:
+    """Handle camera-related requests"""
+    text = text.lower().strip()
+    
+    if "prednju" in text or "prednja" in text or "selfi" in text:
+        return json.dumps({
+            "type": "openCamera",
+            "mode": "front",
+            "message": "Otvaram prednju kameru..."
+        })
+    elif "stražnju" in text or "straznju" in text or "zadnju" in text:
+        return json.dumps({
+            "type": "openCamera",
+            "mode": "back",
+            "message": "Otvaram stražnju kameru..."
+        })
+    else:
+        return "Želite li prednju ili stražnju kameru?"
+
+def handle_alarm_request(text: str) -> str:
+    """Handle alarm-related requests"""
+    time_tuple = parse_time(text)
+    if time_tuple:
+        hours, minutes = time_tuple
+        if 0 <= hours <= 23 and 0 <= minutes <= 59:
+            return json.dumps({
+                "type": "setAlarm",
+                "hours": hours,
+                "minutes": minutes,
+                "message": f"Postavljam alarm za {hours:02d}:{minutes:02d}"
+            })
+    return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'"
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
@@ -570,8 +627,21 @@ async def websocket_endpoint(websocket: WebSocket):
                         site_name = text.split(text.split()[0], 1)[1].strip()
                         response = open_website(site_name)
                     # Provjeri ostale komande
+                    elif state.waiting_for_alarm_time:
+                        state.waiting_for_alarm_time = False
+                        response = handle_alarm_request(text)
+                    elif state.camera_active:
+                        state.camera_active = False
+                        response = handle_camera_request(text)
                     else:
-                        response = flexible_match(text, COMMANDS)
+                        if any(cmd in text for cmd in ["upali kameru", "kamera", "fotoaparat", "selfi"]):
+                            state.camera_active = True
+                            response = "Želite li prednju ili stražnju kameru?"
+                        elif any(cmd in text for cmd in ["probudi me", "navij alarm", "namjesti budilicu"]):
+                            state.waiting_for_alarm_time = True
+                            response = "U koje vrijeme želite alarm?"
+                        else:
+                            response = flexible_match(text, COMMANDS)
                 
                 if not response:
                     response = random.choice(DEFAULT_RESPONSES)
