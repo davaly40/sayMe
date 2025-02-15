@@ -29,14 +29,14 @@ body {
     background: transparent;
     display: flex;
     align-items: center;
-    justify-content: center; /* Promijenjeno u center */
+    justify-content: flex-start; /* Vraćeno na flex-start */
     z-index: 100;
 }
 
 .header-logo {
     height: 48px;
     width: auto;
-    margin: 0; /* Uklonjen margin-left */
+    margin-left: 2rem; /* Vraćen margin-left */
     opacity: 0.8;
     transition: all 0.3s;
 }
@@ -676,13 +676,14 @@ button:hover {
 .footer {
     width: 100%;
     padding: 1.5rem;
-    background: rgba(15, 15, 15, 0.95);
+    background: rgba(0, 0, 0, 0.95); /* Tamnija pozadina */
     backdrop-filter: blur(10px);
     text-align: center;
     color: var(--text);
     font-size: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     z-index: 100;
+    position: relative; /* Dodano */
 }
 
 /* Responsive adjustments */
@@ -697,13 +698,13 @@ button:hover {
     }
 
     .mic-button {
-        width: 72px;
-        height: 72px;
+        width: 60px; /* Smanjeno sa 72px */
+        height: 60px;
     }
 
     .mic-button img {
-        width: 28px;
-        height: 28px;
+        width: 24px; /* Smanjeno sa 28px */
+        height: 24px;
     }
 
     .header {
@@ -716,9 +717,9 @@ button:hover {
     }
     
     .footer {
-        padding: 1.5rem;
-        font-size: 0.95rem;
-        background: rgba(15, 15, 15, 0.98);
+        padding: 1rem;
+        font-size: 0.9rem;
+        background: rgba(0, 0, 0, 1); /* Puna crna na mobilnom */
     }
 }
 
@@ -739,19 +740,18 @@ button:hover {
     }
 
     .mic-button {
-        width: 80px;
-        height: 80px;
+        width: 56px; /* Smanjeno sa 80px */
+        height: 56px;
     }
 
     .mic-button img {
-        width: 32px;
-        height: 32px;
+        width: 22px; /* Smanjeno sa 32px */
+        height: 22px;
     }
     
     .footer {
-        padding: 1.25rem;
-        font-size: 0.9rem;
-        background: rgba(15, 15, 15, 1);
+        padding: 0.75rem;
+        font-size: 0.85rem;
     }
 }
 

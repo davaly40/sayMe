@@ -224,35 +224,31 @@ async function speak(text) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'hr-HR';
     
-    // Optimizirani parametri
-    utterance.pitch = 1.0;
-    utterance.rate = 1.0;
-    utterance.volume = 1.0;
-    
     try {
         if (!visualizer) {
             visualizer = new BlobVisualizer('visualizer');
             await visualizer.init();
         }
 
-        updateState('speaking');
-        visualizer.startVisualization();
+        // Povezivanje audio konteksta s vizualizatorom
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const mediaStreamNode = audioContext.createMediaStreamSource(
+            new MediaStream([new MediaStreamTrack()])
+        );
+        
+        // Povezivanje Speech Synthesis s audio kontekstom
+        utterance.addEventListener('start', () => {
+            updateState('speaking');
+            visualizer.connectAudioSource(mediaStreamNode);
+            visualizer.startVisualization();
+        });
+        
+        utterance.addEventListener('end', () => {
+            visualizer.stopVisualization();
+            updateState(null);
+        });
 
         return new Promise((resolve) => {
-            let wordBoundary = 0;
-            
-            utterance.onboundary = (event) => {
-                if (event.name === 'word') {
-                    // Animiraj vizualizator za svaku riječ
-                    const circle = document.querySelector('.circle-pulse');
-                    if (circle) {
-                        circle.style.animation = 'none';
-                        circle.offsetHeight; // Trigger reflow
-                        circle.style.animation = 'pulsate 2s ease-out infinite';
-                    }
-                }
-            };
-            
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);

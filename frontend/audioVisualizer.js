@@ -52,6 +52,14 @@ class BlobVisualizer {
         this.analyser.smoothingTimeConstant = 0.8; // Glađa tranzicija
         this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
         console.log('Audio context initialized');
+        
+        // Dodaj gain node za kontrolu glasnoće
+        this.audioGain = this.audioContext.createGain();
+        this.audioGain.gain.value = 1.0;
+        
+        // Poveži analyser i gain node
+        this.audioGain.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
     }
 
     setupShaders() {
@@ -364,28 +372,23 @@ class BlobVisualizer {
         try {
             const currentTime = performance.now() / 1000;
             
-            // Animate size
-            if (this.currentSize > this.targetSize) {
-                this.currentSize = Math.max(this.targetSize, 
-                    this.currentSize - this.shrinkSpeed);
-            } else {
-                this.currentSize = Math.min(this.targetSize,
-                    this.currentSize + this.recoverySpeed);
-            }
+            // Dohvati audio podatke
+            this.analyser.getByteFrequencyData(this.frequencyData);
             
-            // Calculate audio level for reactivity
-            let audioLevel = 0;
-            if (this.analyser) {
-                this.analyser.getByteFrequencyData(this.frequencyData);
-                audioLevel = Array.from(this.frequencyData)
-                    .reduce((sum, val) => sum + val, 0) / 
-                    (this.frequencyData.length * 255);
-            }
+            // Izračunaj prosječnu glasnoću
+            const averageVolume = Array.from(this.frequencyData)
+                .reduce((sum, value) => sum + value, 0) / this.frequencyData.length;
             
-            // Update uniforms with enhanced audio reactivity
+            // Normaliziraj glasnoću (0-1)
+            const normalizedVolume = averageVolume / 256;
+            
+            // Animiraj veličinu kruga prema glasnoći
+            this.currentSize = 0.8 + (normalizedVolume * 0.4);
+            
+            // Update uniforms
             this.gl.uniform1f(this.timeLocation, currentTime);
             this.gl.uniform1f(this.circleSizeLocation, this.currentSize);
-            this.gl.uniform1f(this.audioLevelLocation, audioLevel);
+            this.gl.uniform1f(this.audioLevelLocation, normalizedVolume);
             
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
             
