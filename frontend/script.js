@@ -625,67 +625,42 @@ async function openCamera(mode) {
 }
 
 function setAlarm(hours, minutes) {
-    try {
-        const now = new Date();
-        const alarmTime = new Date();
-        alarmTime.setHours(hours);
-        alarmTime.setMinutes(minutes);
-        alarmTime.setSeconds(0);
-        
-        // If the time is in the past, set it for tomorrow
-        if (alarmTime < now) {
-            alarmTime.setDate(alarmTime.getDate() + 1);
-        }
-
-        // Try to use the native alarm app
-        if (navigator.userAgent.toLowerCase().includes('android')) {
-            // Android intent for alarm
-            const intentUrl = `intent:#Intent;action=android.intent.action.SET_ALARM;` +
-                            `package=com.android.deskclock;` +
-                            `type=vnd.android.cursor.item/alarm;` +
-                            `l.android.intent.extra.alarm.HOUR=${hours};` +
-                            `l.android.intent.extra.alarm.MINUTES=${minutes};` +
-                            `B.android.intent.extra.alarm.SKIP_UI=false;` +
-                            `end`;
-            window.location.href = intentUrl;
-        } else if (navigator.userAgent.toLowerCase().includes('iphone') || 
-                  navigator.userAgent.toLowerCase().includes('ipad')) {
-            // iOS clock app URL scheme
-            window.location.href = `clockapp://alarm/new?hour=${hours}&minutes=${minutes}`;
-        } else {
-            // Fallback za desktop - otvori sistemski kalendar
-            const calendarUrl = createCalendarEventUrl(hours, minutes);
-            window.open(calendarUrl, '_blank');
-        }
-        
-        return `Pokušavam postaviti alarm za ${hours}:${minutes.toString().padStart(2, '0')}`;
-    } catch (error) {
-        console.error('Error setting alarm:', error);
-        return 'Nažalost, ne mogu postaviti alarm na vašem uređaju. Pokušajte ručno.';
+    // Check if the browser supports notifications
+    if (!("Notification" in window)) {
+        speak("Vaš preglednik ne podržava alarme.");
+        return;
     }
-}
 
-function createCalendarEventUrl(hours, minutes) {
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    if (date < new Date()) {
-        date.setDate(date.getDate() + 1);
-    }
-    
-    const endDate = new Date(date);
-    endDate.setMinutes(endDate.getMinutes() + 1);
-    
-    const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0];
-    
-    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-DTSTART:${formatDate(date)}
-DTEND:${formatDate(endDate)}
-SUMMARY:Alarm
-DESCRIPTION:SayMe Alarm
-END:VEVENT
-END:VCALENDAR`;
+    // Request notification permission
+    Notification.requestPermission().then(function(permission) {
+        if (permission === "granted") {
+            const now = new Date();
+            const alarmTime = new Date();
+            alarmTime.setHours(hours);
+            alarmTime.setMinutes(minutes);
+            alarmTime.setSeconds(0);
+            
+            // If the time is in the past, set it for tomorrow
+            if (alarmTime < now) {
+                alarmTime.setDate(alarmTime.getDate() + 1);
+            }
+            
+            const timeUntilAlarm = alarmTime - now;
+            
+            setTimeout(() => {
+                new Notification("SayMe Alarm", {
+                    body: `Vrijeme je ${hours}:${minutes.toString().padStart(2, '0')}!`,
+                    icon: "/assets/logo.png"
+                });
+                
+                // Also play a sound
+                const audio = new Audio('/assets/alarm.mp3');
+                audio.play();
+            }, timeUntilAlarm);
+            
+            speak(`Alarm je postavljen za ${hours}:${minutes.toString().padStart(2, '0')}`);
+        }
+    });
 }
 
 // ...rest of the existing code...
