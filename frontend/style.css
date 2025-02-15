@@ -39,6 +39,7 @@ body {
     align-items: center;
     gap: 1.5rem;
     margin-right: 2rem;
+    position: relative; /* Dodano */
 }
 
 .header-icon {
@@ -62,13 +63,13 @@ body {
 
 .share-modal, .help-modal {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 15px); /* Pomaknut malo niže od ikone */
     right: 0;
-    background: rgba(30, 30, 30, 0.95);
+    background: rgba(15, 15, 15, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     display: none;
     z-index: 1000;
     backdrop-filter: blur(10px);
@@ -76,9 +77,33 @@ body {
     max-width: 320px;
 }
 
+.share-modal::before, .help-modal::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 10px;
+    width: 12px;
+    height: 12px;
+    background: rgba(15, 15, 15, 0.95);
+    transform: rotate(45deg);
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .share-modal.active, .help-modal.active {
     display: block;
-    animation: fadeIn 0.3s ease;
+    animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .share-content, .help-content {
@@ -861,6 +886,10 @@ button:hover {
         transform: translate(-50%, -50%);
         width: 90%;
         max-width: 320px;
+    }
+
+    .share-modal::before, .help-modal::before {
+        display: none;
     }
 }
 
