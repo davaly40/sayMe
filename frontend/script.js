@@ -343,6 +343,13 @@ window.onload = async function() {
 
     // Wait for user interaction to initialize audio
     document.getElementById('startButton').addEventListener('click', async function() {
+        if (!visualizer) {
+            // Initialize visualizer on first click
+            visualizer = new BlobVisualizer('visualizer');
+            await visualizer.init();
+            visualizer.startVisualization();
+        }
+        
         if (recognition && socket.readyState === WebSocket.OPEN) {
             recognition.start();
         } else if (socket.readyState !== WebSocket.OPEN) {
