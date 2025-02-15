@@ -137,8 +137,8 @@ COMMANDS: Dict[str, str] = {
     "daj neki vic": "Na žalost, ne znam pričati viceve.",
     "daj mi vic": "Na žalost, ne znam pričati viceve.",
 
-    "ti si peder": "Drago mi je Peder, ja sam sejMi.",
-    "ti si": "Drago mi je, ja sam sejMi.",
+    "ti si peder": "Drago mi je Peder, ja sam Noa.",
+    "ti si": "Drago mi je, ja sam Noa.",
     "pederu": "Hmm, ne znam tko je Peder.",
     "pederčino": "Hmm, ne znam što to znači.",
     "pederčina": "Hmm, ne znam što to znači.",
@@ -195,10 +195,22 @@ COMMANDS: Dict[str, str] = {
     "dal bi volio biti čovjek": "Ne, volim biti robot.",
     "dal bi volio biti osoba": "Ne, volim biti robot.",
     "dal bi volio biti živ": "Ne, ovako mi je dobro.",
-    "dal bi volio biti živa": "Ne, ovako mi je dobro.",
+    "dal bi voljela biti živa": "Ne, ovako mi je dobro.",
     "dal bi volio biti stvaran": "Ja jesam stvaran.",
     "dal bi volio biti prava osoba": "Ne, kul je biti robot.",
+    "dali bi volio biti čovjek": "Ne, volim biti robot.",
+    "dali bi volio biti osoba": "Ne, volim biti robot.",
+    "dali bi volio biti živ": "Ne, ovako mi je dobro.",
+    "dali bi voljela biti živa": "Ne, ovako mi je dobro.",
+    "dali bi volio biti stvaran": "Ja jesam stvaran.",
+    "dali bi volio biti prava osoba": "Ne, kul je biti robot.",
+    "dali bi voljela biti prava osoba": "Ne, kul je biti robot.",
+
     
+    "kako to ne znaš": "Nažalost, nemam još sve informacije ali još učim.",
+    "kako to neznaš": "Još sam u fazi razvoja i učenja.",
+    "kako ne znaš": "Još sam u fazi razvoja i učenja.",
+    "kako neznaš": "Nažalost, nemam još sve informacije ali još učim.",
 
 
 
@@ -218,6 +230,22 @@ COMMANDS: Dict[str, str] = {
     "hej": "Hej! Kako vam mogu pomoći?",
     "e": "Hej!",
     "ee": "Hej!",
+    "dobar dan": "Dobar dan! Kako vam mogu pomoći?",
+    "dobro jutro": "Dobro jutro! Kako vam mogu pomoći?",
+    "dobro veče": "Dobro veče! Kako vam mogu pomoći?",
+    
+    "ne": "U redu, kako ti još mogu pomoći?",
+    "ne želim": "U redu, kako ti još mogu pomoći?",
+    "neću": "U redu, kako ti još mogu pomoći?",
+
+    "upali kameru": "Pokrećem kameru...",
+    "kamera": "Pokrećem kameru...",
+    "fotoaparat": "Pokrećem kameru...",
+    "zabilježi ovaj trenutak": "Pripremam selfi s timerom...",
+    "selfi": "Pripremam selfi s timerom...",
+    "probudi me": "U koje vrijeme želite alarm?",
+    "navij alarm": "U koje vrijeme želite alarm?",
+    "namjesti budilicu": "U koje vrijeme želite alarm?",
 }
 
 WEBSITES = {
