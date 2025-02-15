@@ -563,146 +563,28 @@ async function handleCommand(text) {
 
 // ...existing code...
 
-function handleServerResponse(response) {{
+function handleServerResponse(response) {
     try {
         const data = JSON.parse(response);
-        let facingMode = null;
+        
         switch(data.type) {
-            case "openCamera":dnju') || mode.includes('selfi')) {
+            case "openCamera":
                 openCamera(data.mode);
-                break;e.includes('stražnju') || mode.includes('straznju') || mode.includes('zadnju')) {
-            case "setAlarm":vironment';
+                break;
+            case "setAlarm":
                 setAlarm(data.hours, data.minutes);
-                break;lim vas recite želite li prednju ili stražnju kameru.";
+                break;
             default:
                 // Handle regular text response
-                speak(data.message || response);aplikaciju
-        }f (navigator.userAgent.toLowerCase().includes('android')) {
-    } catch (e) {w.location.href = `intent://media/camera/${facingMode}#Intent;scheme=camera;package=com.android.camera;end`;
-        // Not JSON, handle as regular text response.includes('iphone')) {
-        speak(response);ion.href = 'camera://';
-    }   } else {
-}           // Fallback na web kameru
-            await openWebCamera(facingMode);
-async function openCamera(mode) {
-    try {
-        const constraints = {u...";
-            video: {{
-                facingMode: mode === 'front' ? 'user' : 'environment'
-            }n "Nažalost, ne mogu pristupiti kameri. Provjerite dozvole.";
-        };
-        
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const video = document.createElement('video');
-        video.srcObject = stream;Element('video');
-        video.autoplay = true;ator.mediaDevices.getUserMedia({
-        video.style.position = 'fixed'; }
-        video.style.top = '0';
-        video.style.left = '0';
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.zIndex = '1000';
-        o.style.left = '0';
-        document.body.appendChild(video);
-        o.style.height = '100%';
-        // Add close button000';
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';);
-        closeBtn.style.position = 'fixed';
-        closeBtn.style.top = '20px';
-        closeBtn.style.right = '20px';(() => {
-        closeBtn.style.zIndex = '1001';k => track.stop());
-        closeBtn.onclick = () => {
-            stream.getTracks().forEach(track => track.stop());
-            video.remove();
-            closeBtn.remove();
-        };nt.body.appendChild(closeBtn);
-        document.body.appendChild(closeBtn);
-        
-    } catch (err) {ours, minutes) {
-        speak("Nažalost, ne mogu pristupiti kameri. Molim vas provjerite dozvole.");
-    }   if (navigator.userAgent.toLowerCase().includes('android')) {
-}           // Android Intent za alarm
-            const intentUrl = `intent:#Intent;` +
-function setAlarm(hours, minutes) {=android.intent.action.SET_ALARM;` +
-    try {                   `package=com.android.deskclock;` +
-        const now = new Date();pe=vnd.android.cursor.item/alarm;` +
-        const alarmTime = new Date();d.intent.extra.alarm.HOUR=${hours};` +
-        alarmTime.setHours(hours);roid.intent.extra.alarm.MINUTES=${minutes};` +
-        alarmTime.setMinutes(minutes);.intent.extra.alarm.SKIP_UI=false;` +
-        alarmTime.setSeconds(0);`;
-            window.location.href = intentUrl;
-        // If the time is in the past, set it for tomorrowdes('iphone')) {
-        if (alarmTime < now) {za alarm
-            alarmTime.setDate(alarmTime.getDate() + 1);rtcut?name=SetAlarm&input=${hours}:${minutes}`;
-        } else {
-            // Desktop fallback - otvori sistemski kalendar
-        // Try to use the native alarm appndarEventUrl(hours, minutes);
-        if (navigator.userAgent.toLowerCase().includes('android')) {
-            // Android intent for alarm
-            const intentUrl = `intent:#Intent;action=android.intent.action.SET_ALARM;` +
-                            `package=com.android.deskclock;` +
-                            `type=vnd.android.cursor.item/alarm;` +);
-                            `l.android.intent.extra.alarm.HOUR=${hours};` +
-                            `l.android.intent.extra.alarm.MINUTES=${minutes};` +
-                            `B.android.intent.extra.alarm.SKIP_UI=false;` +
-                            `end`;
-            window.location.href = intentUrl;
-        } else if (navigator.userAgent.toLowerCase().includes('iphone') || 
-                  navigator.userAgent.toLowerCase().includes('ipad')) {
-            // iOS clock app URL schemee);
-            window.location.href = `clockapp://alarm/new?hour=${hours}&minutes=${minutes}`;
-        } else {ata.type) {
-            // Fallback za desktop - otvori sistemski kalendar
-            const calendarUrl = createCalendarEventUrl(hours, minutes);
-            window.open(calendarUrl, '_blank');
-        }   case "setAlarm":
-                setAlarm(data.hours, data.minutes);
-        return `Pokušavam postaviti alarm za ${hours}:${minutes.toString().padStart(2, '0')}`;
-    } catch (error) {
-        console.error('Error setting alarm:', error);
-        return 'Nažalost, ne mogu postaviti alarm na vašem uređaju. Pokušajte ručno.';
+                speak(data.message || response);
+        }
     } catch (e) {
-}       speak(response);
+        // Not JSON, handle as regular text response
+        speak(response);
     }
-function createCalendarEventUrl(hours, minutes) {
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    if (date < new Date()) {
-        date.setDate(date.getDate() + 1);
-    }ry {
-        const data = JSON.parse(response);
-    const endDate = new Date(date);
-    endDate.setMinutes(endDate.getMinutes() + 1);
-            case "openCamera":
-    const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0];
-                break;
-    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
-VERSION:2.0     setAlarm(data.hours, data.minutes);
-BEGIN:VEVENT    break;
-DTSTART:${formatDate(date)}
-DTEND:${formatDate(endDate)}gular text response
-SUMMARY:Alarm   speak(data.message || response);
-DESCRIPTION:SayMe Alarm
-END:VEVENTh (e) {
-END:VCALENDAR`;JSON, handle as regular text response
-}       speak(response);
-    }
-function checkDeviceCapabilities() {
-    const capabilities = {
+}
 
-
-
-
-
-
-
-
-
-
-
-
-// ...rest of the existing code...}    return capabilities;    console.log('Device capabilities:', capabilities);        };        notifications: 'Notification' in window               navigator.userAgent.toLowerCase().includes('iphone'),        alarm: navigator.userAgent.toLowerCase().includes('android') ||         camera: 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices,async function openCamera(mode) {
+async function openCamera(mode) {
     try {
         const constraints = {
             video: {
@@ -794,114 +676,16 @@ function createCalendarEventUrl(hours, minutes) {
     endDate.setMinutes(endDate.getMinutes() + 1);
     
     const formatDate = (d) => d.toISOString().replace(/[-:]/g, '').split('.')[0];
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ...rest of the existing code...}END:VCALENDAR`;END:VEVENTDESCRIPTION:SayMe AlarmSUMMARY:AlarmDTEND:${formatDate(endDate)}DTSTART:${formatDate(date)}BEGIN:VEVENTVERSION:2.0    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
-
-async function openSystemCamera(mode = 'back') {
-    try {
-        const isAndroid = /android/i.test(navigator.userAgent);
-        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        
-        if (isAndroid) {
-            // Android Intent za kameru
-            const intentUrl = `intent://#Intent;` +
-                            `action=android.media.action.${mode === 'front' ? 'SELFIE' : 'IMAGE_CAPTURE'};` +
-                            `package=com.android.camera;` +
-                            `component=com.android.camera/.Camera;` +
-                            `end`;
-            location.href = intentUrl;
-            return true;
-        } else if (isIOS) {
-            // iOS URL scheme
-            location.href = 'camera://';
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Error opening system camera:', error);
-        return false;
-    }
-}
-
-async function openSystemAlarm(hours, minutes) {
-    try {
-        const isAndroid = /android/i.test(navigator.userAgent);
-        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-        
-        if (isAndroid) {
-            // Android Intent za alarm
-            const intentUrl = `intent:#Intent;` +
-                            `action=android.intent.action.SET_ALARM;` +
-                            `package=com.android.deskclock;` +
-                            `type=vnd.android.cursor.item/alarm;` +
-                            `l.android.intent.extra.alarm.HOUR=${hours};` +
-                            `l.android.intent.extra.alarm.MINUTES=${minutes};` +
-                            `b.android.intent.extra.alarm.SKIP_UI=false;` +
-                            `end`;
-            location.href = intentUrl;
-            return true;
-        } else if (isIOS) {
-            // iOS URL scheme za alarm
-            location.href = `clockapp://alarm?hours=${hours}&minutes=${minutes}`;
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('Error setting system alarm:', error);
-        return false;
-    }
-}
-
-// Modificiraj postojeće handlery
-async function handleCameraRequest(text) {
-    const mode = text.toLowerCase();
-    const isFront = mode.includes('prednju') || mode.includes('selfi');
     
-    // Prvo pokušaj otvoriti sistemsku kameru
-    if (await openSystemCamera(isFront ? 'front' : 'back')) {
-        return "Otvaram kameru...";
-    }
-    
-    // Ako ne uspije, koristi web kameru kao fallback
-    try {
-        await openWebCamera(isFront ? 'user' : 'environment');
-        return "Otvaram web kameru...";
-    } catch (error) {
-        return "Nažalost, ne mogu pristupiti kameri. Provjerite dozvole.";
-    }
+    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatDate(date)}
+DTEND:${formatDate(endDate)}
+SUMMARY:Alarm
+DESCRIPTION:SayMe Alarm
+END:VEVENT
+END:VCALENDAR`;
 }
 
-function handleAlarmRequest(text) {
-    const timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(?:h|sati?)?/);
-    if (!timeMatch) {
-        return "Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'";
-    }
-
-    const hours = parseInt(timeMatch[1]);
-    const minutes = parseInt(timeMatch[2] || '0');
-
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        return "Molim vas unesite ispravno vrijeme.";
-    }
-
-    // Pokušaj postaviti sistemski alarm
-    if (openSystemAlarm(hours, minutes)) {
-        return `Postavljam alarm za ${hours}:${minutes.toString().padStart(2, '0')}`;
-    } else {
-        return "Nažalost, ne mogu postaviti sistemski alarm. Pokušajte ručno.";
-    }
-}
-
-// ...existing code...
+// ...rest of the existing code...
