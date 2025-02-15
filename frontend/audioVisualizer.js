@@ -418,3 +418,130 @@ class BlobVisualizer {
         requestAnimationFrame(() => this.animate());
     }
 }
+
+class AudioVisualizer {
+    constructor(canvas) {
+        this.canvas = document.getElementById(canvas);
+        this.ctx = this.canvas.getContext('2d');
+        this.audioContext = null;
+        this.analyser = null;
+        this.dataArray = null;
+        this.animationId = null;
+        this.isActive = false;
+        this.particleSpacing = 2;
+        this.glowIntensity = 20;
+        
+        this.setupCanvas();
+        this.initializeAudio();
+    }
+
+    setupCanvas() {
+        this.canvas.width = 300;
+        this.canvas.height = 300;
+        this.centerX = this.canvas.width / 2;
+        this.centerY = this.canvas.height / 2;
+        this.radius = Math.min(this.centerX, this.centerY) - 50;
+    }
+
+    async initializeAudio() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            this.bufferLength = this.analyser.frequencyBinCount;
+            this.dataArray = new Uint8Array(this.bufferLength);
+            this.analyser.connect(this.audioContext.destination);
+        } catch (error) {
+            console.error('Audio initialization error:', error);
+        }
+    }
+
+    start() {
+        if (!this.isActive) {
+            this.isActive = true;
+            this.draw();
+        }
+    }
+
+    stop() {
+        this.isActive = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+    }
+
+    draw() {
+        if (!this.isActive) return;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        if (this.analyser) {
+            this.analyser.getByteFrequencyData(this.dataArray);
+        }
+
+        // Background glow
+        const gradient = this.ctx.createRadialGradient(
+            this.centerX, this.centerY, 0,
+            this.centerX, this.centerY, this.radius
+        );
+        gradient.addColorStop(0, 'rgba(0, 255, 149, 0.1)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Draw spectrum
+        const angleStep = (2 * Math.PI) / this.bufferLength;
+
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = '#00ff95';
+        this.ctx.beginPath();
+
+        for (let i = 0; i < this.bufferLength; i++) {
+            const value = this.dataArray ? this.dataArray[i] : 128;
+            const normalizedValue = value / 255;
+            const amplitude = this.radius * 0.3 + (normalizedValue * this.radius * 0.3);
+            const angle = i * angleStep;
+            
+            const x = this.centerX + Math.cos(angle) * amplitude;
+            const y = this.centerY + Math.sin(angle) * amplitude;
+
+            if (i === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
+            }
+        }
+
+        this.ctx.closePath();
+        
+        // Add glow effect
+        this.ctx.shadowBlur = this.glowIntensity;
+        this.ctx.shadowColor = '#00ff95';
+        this.ctx.stroke();
+
+        // Pulsing inner circle
+        const time = Date.now() * 0.001;
+        const pulseRadius = this.radius * 0.2 + Math.sin(time * 2) * 5;
+        
+        this.ctx.beginPath();
+        this.ctx.arc(this.centerX, this.centerY, pulseRadius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = '#00ff95';
+        this.ctx.stroke();
+
+        this.animationId = requestAnimationFrame(() => this.draw());
+    }
+
+    connectSource(source) {
+        if (this.audioContext && this.analyser) {
+            source.connect(this.analyser);
+        }
+    }
+
+    setGlowIntensity(intensity) {
+        this.glowIntensity = intensity;
+    }
+
+    resize() {
+        this.setupCanvas();
+    }
+}
