@@ -379,6 +379,19 @@ function initializeModals() {
         shareLinkInput.value = window.location.href;
     }
 
+    // Generiraj QR kod
+    const qrCodeElement = document.getElementById('qrCode');
+    if (qrCodeElement) {
+        new QRCode(qrCodeElement, {
+            text: window.location.href,
+            width: 200,
+            height: 200,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
+
     // Event listeneri za modale
     shareButton.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -736,59 +749,3 @@ function setAlarm(hours, minutes) {
 }
 
 // ...rest of the existing code...
-
-document.addEventListener('DOMContentLoaded', function() {
-    const shareButton = document.getElementById('shareButton');
-    const shareModal = document.getElementById('shareModal');
-    const helpButton = document.getElementById('helpButton');
-    const helpModal = document.getElementById('helpModal');
-    const copyButton = document.getElementById('copyButton');
-    const shareLinkInput = document.getElementById('shareLink');
-
-    // Postavi trenutnu URL adresu
-    shareLinkInput.value = window.location.href;
-
-    // Event listeneri za modale
-    shareButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        helpModal.classList.remove('active');
-        shareModal.classList.toggle('active');
-    });
-
-    // Event listener za help button
-    helpButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        shareModal.classList.remove('active');
-        helpModal.classList.toggle('active');
-    });
-
-    // Event listener za copy button
-    copyButton.addEventListener('click', async function() {
-        try {
-            await navigator.clipboard.writeText(shareLinkInput.value);
-            copyButton.textContent = 'Kopirano!';
-            setTimeout(() => copyButton.textContent = 'Kopiraj', 2000);
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    });
-
-    // Zatvori modale klikom izvan njih
-    document.addEventListener('click', function(e) {
-        if (!shareButton.contains(e.target) && 
-            !shareModal.contains(e.target) && 
-            !helpButton.contains(e.target) && 
-            !helpModal.contains(e.target)) {
-            shareModal.classList.remove('active');
-            helpModal.classList.remove('active');
-        }
-    });
-
-    // Zatvori modale na ESC tipku
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            shareModal.classList.remove('active');
-            helpModal.classList.remove('active');
-        }
-    });
-});
