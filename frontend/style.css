@@ -306,14 +306,13 @@ button:hover {
 
 .audio-circle {
     position: relative;
-    width: 300px;
-    height: 300px;
-    margin: 2rem auto;
+    width: auto; /* Change from fixed width */
+    height: auto; /* Change from fixed height */
+    margin: 1rem auto;
     display: flex;
     align-items: center;
     justify-content: center;
     background: none;
-    z-index: 1;
 }
 
 .audio-circle::before {
@@ -583,13 +582,7 @@ button:hover {
 }
 
 .audio-visualizer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block; /* Changed from none */
-    z-index: 2;
+    display: none; /* Add this line to hide the visualizer */
 }
 
 .visualizer-container {
@@ -697,14 +690,7 @@ button:hover {
 }
 
 #visualizer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: block; /* Changed from none */
-    border-radius: 50%;
-    overflow: hidden;
+    display: none; /* Add this line to hide the canvas */
 }
 
 #visualizer {
