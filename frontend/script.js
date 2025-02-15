@@ -1,8 +1,6 @@
 let recognition;
 let socket;
-let visualizer;
 const audioCircle = document.getElementById('audioCircle');
-let cameraStream = null;
 
 function updateState(state) {
     audioCircle.classList.remove('listening', 'speaking', 'thinking');
@@ -10,14 +8,8 @@ function updateState(state) {
     
     if (state === 'listening') {
         button.classList.add('active');
-        visualizer.setState(2);
-    } else if (state === 'speaking') {
-        visualizer.setState(1);
-    } else if (state === 'thinking') {
-        visualizer.setState(3);
     } else {
         button.classList.remove('active');
-        visualizer.setState(0);
     }
     
     if (state) {
@@ -60,9 +52,6 @@ async function initializeSpeechRecognition() {
 
         // Zaustavi prethodno prepoznavanje ako postoji
         recognition.onstart = () => {
-            if (visualizer && visualizer.audioContext) {
-                visualizer.stopAllAudio();
-            }
             updateState('listening');
             console.log('Speech recognition started');
         };
@@ -243,32 +232,12 @@ async function speak(text) {
 
         updateState('speaking');
 
-        // Connect audio to visualizer
-        if (visualizer && visualizer.audioContext) {
-            const audioContext = visualizer.audioContext;
-            const source = audioContext.createMediaStreamSource(await createSpeechStream(utterance));
-            source.connect(visualizer.analyser);
-        }
-
         await new Promise((resolve) => {
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);
                     resolve();
                 }, 500);
-            };
-            
-            utterance.onstart = () => {
-                if (visualizer) {
-                    visualizer.shrink = 0.8; // Initial shrink when speaking starts
-                }
-            };
-            
-            utterance.onboundary = () => {
-                if (visualizer) {
-                    // Pulse effect on word boundaries
-                    visualizer.triggerWord(utterance.text.length);
-                }
             };
             
             speechSynthesis.speak(utterance);
@@ -369,11 +338,6 @@ window.onload = async function() {
     
     initializeWebSocket();
     initializeSpeechRecognition();
-
-    // Initialize visualizer immediately
-    visualizer = new BlobVisualizer('visualizer');
-    await visualizer.init();
-    visualizer.startVisualization();
     
     document.getElementById('startButton').addEventListener('click', async function() {
         if (recognition && socket.readyState === WebSocket.OPEN) {
