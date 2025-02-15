@@ -237,20 +237,38 @@ async function speak(text) {
     utterance.lang = 'hr-HR';
     
     try {
-        // Zaustavi prepoznavanje govora dok traje sinteza
         if (recognition) {
             recognition.stop();
         }
 
         updateState('speaking');
 
-        // Čekaj da završi govor prije nastavka
+        // Connect audio to visualizer
+        if (visualizer && visualizer.audioContext) {
+            const audioContext = visualizer.audioContext;
+            const source = audioContext.createMediaStreamSource(await createSpeechStream(utterance));
+            source.connect(visualizer.analyser);
+        }
+
         await new Promise((resolve) => {
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);
                     resolve();
                 }, 500);
+            };
+            
+            utterance.onstart = () => {
+                if (visualizer) {
+                    visualizer.shrink = 0.8; // Initial shrink when speaking starts
+                }
+            };
+            
+            utterance.onboundary = () => {
+                if (visualizer) {
+                    // Pulse effect on word boundaries
+                    visualizer.triggerWord(utterance.text.length);
+                }
             };
             
             speechSynthesis.speak(utterance);
@@ -260,6 +278,34 @@ async function speak(text) {
         console.error('Speak error:', error);
         updateState(null);
     }
+}
+
+// Add this helper function to create audio stream from speech synthesis
+async function createSpeechStream(utterance) {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    utterance.onstart = () => {
+        oscillator.start();
+    };
+    
+    utterance.onend = () => {
+        oscillator.stop();
+    };
+    
+    utterance.onboundary = (event) => {
+        // Modulate gain based on word boundaries
+        gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+    };
+    
+    const stream = audioContext.createMediaStreamDestination();
+    gainNode.connect(stream);
+    return stream.stream;
 }
 
 // Poboljšano učitavanje glasova
@@ -321,35 +367,15 @@ window.onload = async function() {
     await prepareDevice();
     checkDeviceCompatibility();
     
-    // Register service worker for PWA support
-    if ('serviceWorker' in navigator) {
-        try {
-            await navigator.serviceWorker.register('/service-worker.js');
-            console.log('Service Worker registered successfully');
-        } catch (error) {
-            console.error('Service Worker registration failed:', error);
-        }
-    }
-
-    if (!('webkitSpeechRecognition' in window)) {
-        alert('Vaš preglednik ne podržava prepoznavanje govora.');
-        document.getElementById('startButton').disabled = true;
-        return;
-    }
-
-    // Initialize WebSocket and Speech Recognition first
     initializeWebSocket();
     initializeSpeechRecognition();
 
-    // Wait for user interaction to initialize audio
+    // Initialize visualizer immediately
+    visualizer = new BlobVisualizer('visualizer');
+    await visualizer.init();
+    visualizer.startVisualization();
+    
     document.getElementById('startButton').addEventListener('click', async function() {
-        if (!visualizer) {
-            // Initialize visualizer on first click
-            visualizer = new BlobVisualizer('visualizer');
-            await visualizer.init();
-            visualizer.startVisualization();
-        }
-        
         if (recognition && socket.readyState === WebSocket.OPEN) {
             recognition.start();
         } else if (socket.readyState !== WebSocket.OPEN) {
@@ -357,7 +383,6 @@ window.onload = async function() {
         }
     });
 
-    // Load voices
     await loadVoices();
 };
 
