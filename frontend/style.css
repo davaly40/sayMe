@@ -53,7 +53,7 @@ body {
     justify-content: center;
     padding: 1rem;
     width: clamp(300px, 90%, 600px);
-    margin: auto;
+    margin: 0 auto;  /* Promijenjeno iz margin: auto */
     background: rgba(15, 15, 15, 0.8);
     border-radius: 10px;
     box-shadow: 0 0 30px rgba(0, 255, 149, 0.1);
@@ -684,8 +684,9 @@ button:hover {
     color: var(--text);
     font-size: 0.9rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
-    position: sticky;  /* Promijenjeno sa relative */
+    position: fixed;  /* Promijenjeno sa sticky na fixed */
     bottom: 0;
+    left: 0;  /* Dodano */
     z-index: 100;
 }
 
@@ -698,6 +699,8 @@ button:hover {
     .container {
         width: clamp(280px, 85%, 500px);
         margin-bottom: 1rem;  /* Dodaj prostor iznad footera */
+        padding-bottom: calc(3rem + env(safe-area-inset-bottom));  /* Dodano */
+        margin-bottom: 0;  /* Dodano */
     }
 
     .audio-circle {
@@ -726,6 +729,7 @@ button:hover {
     }
     
     .footer {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));  /* Dodano za iOS */
         padding: 0.75rem;
         font-size: 0.85rem;
         background: rgba(0, 0, 0, 0.98);
