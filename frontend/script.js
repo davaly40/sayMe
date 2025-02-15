@@ -243,39 +243,36 @@ async function speak(text) {
 
         updateState('speaking');
 
-        // Connect audio to visualizer with improved audio routing
+        // Connect audio to visualizer
         if (visualizer && visualizer.audioContext) {
             const audioContext = visualizer.audioContext;
-            
-            // Create audio source from utterance
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(visualizer.analyser);
-            visualizer.analyser.connect(audioContext.destination);
-            
-            utterance.onstart = () => {
-                oscillator.start();
-                visualizer.startVisualization();
-            };
-            
+            const source = audioContext.createMediaStreamSource(await createSpeechStream(utterance));
+            source.connect(visualizer.analyser);
+        }
+
+        await new Promise((resolve) => {
             utterance.onend = () => {
-                oscillator.stop();
                 setTimeout(() => {
                     updateState(null);
+                    resolve();
                 }, 500);
             };
             
-            utterance.onboundary = (event) => {
-                // Modulate gain for visualization
-                gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
-                visualizer.triggerWord(utterance.text.length);
+            utterance.onstart = () => {
+                if (visualizer) {
+                    visualizer.shrink = 0.8; // Initial shrink when speaking starts
+                }
             };
-        }
-
-        speechSynthesis.speak(utterance);
+            
+            utterance.onboundary = () => {
+                if (visualizer) {
+                    // Pulse effect on word boundaries
+                    visualizer.triggerWord(utterance.text.length);
+                }
+            };
+            
+            speechSynthesis.speak(utterance);
+        });
 
     } catch (error) {
         console.error('Speak error:', error);
