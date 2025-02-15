@@ -34,6 +34,15 @@
             Ova aplikacija zahtijeva JavaScript. Molimo omogućite JavaScript u vašem browseru.
         </div>
     </noscript>
+
+    <!-- Dodaj audio kontrole -->
+    <script>
+        // Spriječi automatsko pokretanje zvuka
+        document.addEventListener('DOMContentLoaded', function() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            context.suspend();
+        });
+    </script>
 </head>
 <body>
     <svg style="position: absolute; width: 0; height: 0">

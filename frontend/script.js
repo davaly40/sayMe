@@ -36,51 +36,35 @@ function formatResponse(text) {
 
 // Add speech recognition initialization
 async function initializeSpeechRecognition() {
-    // Proširena detekcija Speech Recognition API-ja
-    window.SpeechRecognition = window.SpeechRecognition ||
-                              window.webkitSpeechRecognition ||
-                              window.mozSpeechRecognition ||
-                              window.msSpeechRecognition;
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    const isSamsung = /Samsung|SM-/i.test(navigator.userAgent);
-    const isChrome = /Chrome/.test(navigator.userAgent);
-    const chromeVersion = parseInt((navigator.userAgent.match(/Chrome\/([0-9]+)/) || [])[1] || '0');
-    
-    if (!window.SpeechRecognition) {
-        alert('Vaš uređaj ne podržava prepoznavanje govora. Molimo koristite Chrome preglednik.');
-        return;
-    }
-
     try {
-        recognition = new window.SpeechRecognition();
-        
-        // Dodaj debug informacije
-        console.log('Browser:', navigator.userAgent);
-        console.log('Recognition API:', !!window.SpeechRecognition);
-        
-        // Prilagodbe za Chrome na mobilnim uređajima
-        if (/Chrome/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent)) {
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-        }
+        // Prvo pokušaj dobiti dozvolu za mikrofon
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                // Odmah zaustavi stream da spriječimo feedback
+                stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(err => {
+                console.error('Microphone permission error:', err);
+                alert('Molimo dozvolite pristup mikrofonu za korištenje aplikacije.');
+                return;
+            });
 
-        // Posebne postavke za Samsung uređaje
-        if (isSamsung) {
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-            
-            // Dodatna provjera za Samsung uređaje
-            if (!isChrome || chromeVersion < 95) {
-                alert('Molimo koristite najnoviju verziju Chrome preglednika na Samsung uređajima.');
-            }
-        } else {
-            recognition.continuous = false;
-            recognition.interimResults = false;
-        }
-        
+        recognition = new window.SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
         recognition.lang = 'hr-HR';
+
+        // Zaustavi prethodno prepoznavanje ako postoji
+        recognition.onstart = () => {
+            if (visualizer && visualizer.audioContext) {
+                visualizer.stopAllAudio();
+            }
+            updateState('listening');
+            console.log('Speech recognition started');
+        };
 
         recognition.onerror = function(event) {
             console.error('Speech recognition error:', event.error);
@@ -122,11 +106,6 @@ async function initializeSpeechRecognition() {
             }
         };
 
-        recognition.onstart = () => {
-            updateState('listening');
-            console.log('Speech recognition started');
-        };
-
         recognition.onresult = async function(event) {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
@@ -153,8 +132,8 @@ async function initializeSpeechRecognition() {
         };
 
     } catch (error) {
-        console.error('Error initializing speech recognition:', error);
-        alert('Došlo je do greške pri inicijalizaciji prepoznavanja govora. Pokušajte koristiti Chrome browser.');
+        console.error('Recognition init error:', error);
+        alert('Greška pri inicijalizaciji. Molimo osvježite stranicu.');
     }
 }
 
@@ -257,30 +236,15 @@ async function speak(text) {
     utterance.lang = 'hr-HR';
     
     try {
-        if (!visualizer) {
-            visualizer = new BlobVisualizer('visualizer');
-            await visualizer.init();
+        // Zaustavi prepoznavanje govora dok traje sinteza
+        if (recognition) {
+            recognition.stop();
         }
 
-        // Povezivanje audio konteksta s vizualizatorom
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const mediaStreamNode = audioContext.createMediaStreamSource(
-            new MediaStream([new MediaStreamTrack()])
-        );
-        
-        // Povezivanje Speech Synthesis s audio kontekstom
-        utterance.addEventListener('start', () => {
-            updateState('speaking');
-            visualizer.connectAudioSource(mediaStreamNode);
-            visualizer.startVisualization();
-        });
-        
-        utterance.addEventListener('end', () => {
-            visualizer.stopVisualization();
-            updateState(null);
-        });
+        updateState('speaking');
 
-        return new Promise((resolve) => {
+        // Čekaj da završi govor prije nastavka
+        await new Promise((resolve) => {
             utterance.onend = () => {
                 setTimeout(() => {
                     updateState(null);
@@ -290,8 +254,10 @@ async function speak(text) {
             
             speechSynthesis.speak(utterance);
         });
+
     } catch (error) {
-        console.error('Error in speak function:', error);
+        console.error('Speak error:', error);
+        updateState(null);
     }
 }
 

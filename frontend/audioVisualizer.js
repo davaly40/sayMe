@@ -49,26 +49,34 @@ class BlobVisualizer {
 
     async initAudioContext() {
         try {
+            if (this.audioContext) {
+                await this.audioContext.close();
+            }
+            
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 256; // Smanjena vrijednost za bolje performanse
+            this.analyser.fftSize = 256;
             this.analyser.smoothingTimeConstant = 0.7;
             this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
             
-            // Dodaj oscilator za testiranje
-            this.oscillator = this.audioContext.createOscillator();
+            // Ukloni oscilator
             this.gainNode = this.audioContext.createGain();
-            this.gainNode.gain.value = 0.5;
+            this.gainNode.gain.value = 0.0; // Potpuno utišano
             
-            this.oscillator.connect(this.gainNode);
             this.gainNode.connect(this.analyser);
-            this.analyser.connect(this.audioContext.destination);
-            
-            this.oscillator.start();
             this.audioInitialized = true;
-            console.log('Audio context initialized successfully');
         } catch (error) {
             console.error('Audio initialization error:', error);
+        }
+    }
+
+    stopAllAudio() {
+        if (this.audioContext) {
+            this.gainNode.gain.value = 0;
+            if (this.oscillator) {
+                this.oscillator.stop();
+                this.oscillator.disconnect();
+            }
         }
     }
 
