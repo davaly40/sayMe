@@ -35,7 +35,7 @@ function formatResponse(text) {
 }
 
 // Add speech recognition initialization
-function initializeSpeechRecognition() {
+async function initializeSpeechRecognition() {
     // Proširena detekcija Speech Recognition API-ja
     window.SpeechRecognition = window.SpeechRecognition ||
                               window.webkitSpeechRecognition ||
@@ -54,6 +54,17 @@ function initializeSpeechRecognition() {
     try {
         recognition = new window.SpeechRecognition();
         
+        // Dodaj debug informacije
+        console.log('Browser:', navigator.userAgent);
+        console.log('Recognition API:', !!window.SpeechRecognition);
+        
+        // Prilagodbe za Chrome na mobilnim uređajima
+        if (/Chrome/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent)) {
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+        }
+
         // Posebne postavke za Samsung uređaje
         if (isSamsung) {
             recognition.continuous = false;
@@ -77,6 +88,10 @@ function initializeSpeechRecognition() {
                 alert('Molimo dozvolite pristup mikrofonu i osvježite stranicu.');
             } else if (event.error === 'network') {
                 alert('Provjerite internetsku vezu.');
+                setTimeout(() => {
+                    recognition.stop();
+                    recognition.start();
+                }, 1000);
             } else if (event.error === 'no-speech') {
                 console.log('No speech detected');
                 // Tiho ponovno pokretanje na Samsung uređajima
@@ -112,14 +127,25 @@ function initializeSpeechRecognition() {
             console.log('Speech recognition started');
         };
 
-        recognition.onresult = function(event) {
+        recognition.onresult = async function(event) {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
+            
+            // Dodaj vizualnu povratnu informaciju
+            const button = document.getElementById('startButton');
+            button.style.background = 'rgba(255, 255, 255, 0.2)';
+            setTimeout(() => button.style.background = '', 200);
+            
             appendMessage(command, true);
             updateState('thinking');
             
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(command);
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                try {
+                    await socket.send(command);
+                } catch (err) {
+                    console.error('WebSocket send error:', err);
+                    alert('Greška u komunikaciji. Molimo osvježite stranicu.');
+                }
             } else {
                 appendMessage("Nije moguće poslati poruku. Server nije dostupan.", false);
                 updateState(null);
@@ -194,8 +220,14 @@ async function initializeWebSocket() {
         };
 
         socket.onclose = function() {
-            console.log('WebSocket closed. Attempting to reconnect...');
-            setTimeout(initializeWebSocket, 5000); // Povećano na 5 sekundi
+            console.log('WebSocket closed, attempting reconnect...');
+            setTimeout(async () => {
+                try {
+                    await initializeWebSocket();
+                } catch (e) {
+                    console.error('Reconnect failed:', e);
+                }
+            }, 3000);
         };
     } catch (error) {
         console.error('Error initializing WebSocket:', error);

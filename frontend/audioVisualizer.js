@@ -23,6 +23,8 @@ class BlobVisualizer {
         this.particles = []; // Za lebdeće čestice
         this.maxParticles = 20;
         this.glowIntensity = 0.0; // Za dinamički glow efekt
+        this.audioInitialized = false;
+        this.lastAudioLevel = 0;
     }
 
     async init() {
@@ -46,20 +48,28 @@ class BlobVisualizer {
     }
 
     async initAudioContext() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 2048; // Povećana rezolucija
-        this.analyser.smoothingTimeConstant = 0.8; // Glađa tranzicija
-        this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
-        console.log('Audio context initialized');
-        
-        // Dodaj gain node za kontrolu glasnoće
-        this.audioGain = this.audioContext.createGain();
-        this.audioGain.gain.value = 1.0;
-        
-        // Poveži analyser i gain node
-        this.audioGain.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256; // Smanjena vrijednost za bolje performanse
+            this.analyser.smoothingTimeConstant = 0.7;
+            this.frequencyData = new Uint8Array(this.analyser.frequencyBinCount);
+            
+            // Dodaj oscilator za testiranje
+            this.oscillator = this.audioContext.createOscillator();
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = 0.5;
+            
+            this.oscillator.connect(this.gainNode);
+            this.gainNode.connect(this.analyser);
+            this.analyser.connect(this.audioContext.destination);
+            
+            this.oscillator.start();
+            this.audioInitialized = true;
+            console.log('Audio context initialized successfully');
+        } catch (error) {
+            console.error('Audio initialization error:', error);
+        }
     }
 
     setupShaders() {
@@ -280,6 +290,9 @@ class BlobVisualizer {
     }
 
     startVisualization() {
+        if (!this.audioInitialized) {
+            this.initAudioContext().catch(console.error);
+        }
         this.isAnimating = true;
         // Resetiraj prethodne frekvencije za glatki početak
         this.prevFrequencies = null;
@@ -373,28 +386,27 @@ class BlobVisualizer {
             const currentTime = performance.now() / 1000;
             
             // Dohvati audio podatke
-            this.analyser.getByteFrequencyData(this.frequencyData);
+            if (this.analyser) {
+                this.analyser.getByteFrequencyData(this.frequencyData);
+                const sum = this.frequencyData.reduce((a, b) => a + b, 0);
+                const avg = sum / this.frequencyData.length;
+                this.lastAudioLevel = avg / 256;
+            }
             
-            // Izračunaj prosječnu glasnoću
-            const averageVolume = Array.from(this.frequencyData)
-                .reduce((sum, value) => sum + value, 0) / this.frequencyData.length;
-            
-            // Normaliziraj glasnoću (0-1)
-            const normalizedVolume = averageVolume / 256;
-            
-            // Animiraj veličinu kruga prema glasnoći
-            this.currentSize = 0.8 + (normalizedVolume * 0.4);
+            // Smoothing
+            const targetSize = 0.8 + (this.lastAudioLevel * 0.4);
+            this.currentSize += (targetSize - this.currentSize) * 0.1;
             
             // Update uniforms
             this.gl.uniform1f(this.timeLocation, currentTime);
             this.gl.uniform1f(this.circleSizeLocation, this.currentSize);
-            this.gl.uniform1f(this.audioLevelLocation, normalizedVolume);
+            this.gl.uniform1f(this.audioLevelLocation, this.lastAudioLevel);
             
             this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-            
-            requestAnimationFrame(() => this.animate());
         } catch (error) {
             console.error('Animation error:', error);
         }
+        
+        requestAnimationFrame(() => this.animate());
     }
 }

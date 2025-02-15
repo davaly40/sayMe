@@ -31,6 +31,7 @@ body {
     align-items: center;
     justify-content: flex-start; /* Vraćeno na flex-start */
     z-index: 100;
+    position: relative; /* Dodano */
 }
 
 .header-logo {
@@ -708,12 +709,13 @@ button:hover {
     }
 
     .header {
-        justify-content: center;
+        justify-content: flex-start; /* Promijenjeno iz center */
+        padding: 1rem 0; /* Dodano */
     }
 
     .header-logo {
-        height: 42px;
-        margin: 0;
+        margin-left: 1rem; /* Smanjen margin na mobilnim uređajima */
+        height: 36px; /* Malo smanjena visina */
     }
     
     .footer {
