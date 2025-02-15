@@ -945,7 +945,7 @@ button:hover {
     position: absolute;
     width: 60px;
     height: 60px;
-    background: #4A90E2;  /* Blue color for idle state */
+    background: #5ce1e6;  /* Changed from #4A90E2 to #5ce1e6 */
     border-radius: 12px;  /* Rounded corners for square */
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
