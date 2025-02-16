@@ -464,105 +464,98 @@ def search_web(query: str) -> str:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
-        # Prepoznaj tip upita
+        # Prepoznaj tip upita i očisti ga
         query_type = None
         clean_query = query.lower().strip()
         
         if clean_query.startswith(('tko je', 'ko je')):
             query_type = 'person'
             clean_query = re.sub(r'^(tko|ko)\s+je\s+', '', clean_query)
+            google_url = f"https://www.google.com/search?q={clean_query}+biografija+wikipedia&hl=hr"
+            
         elif clean_query.startswith(('što je', 'šta je')):
             query_type = 'definition'
             clean_query = re.sub(r'^(što|šta)\s+je\s+', '', clean_query)
-
-        # Prilagodi URL i parametre pretraživanja ovisno o tipu upita
-        if query_type == 'person':
-            # Za osobe prvo probaj hrvatsku Wikipediju
-            wiki_url = f"https://hr.wikipedia.org/wiki/{clean_query.replace(' ', '_')}"
-            try:
-                wiki_response = requests.get(wiki_url, headers=headers, timeout=5)
-                if wiki_response.status_code == 200:
-                    wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
-                    paragraphs = wiki_soup.select('div.mw-parser-output > p')
-                    for p in paragraphs:
-                        if not p.find('span', class_='reference') and len(p.text.strip()) > 100:
-                            text = p.text.strip()
-                            text = re.sub(r'\[\d+\]', '', text)
-                            text = re.sub(r'\([^)]*\)', '', text)
-                            return text[:500] + "..." if len(text) > 500 else text
-                            
-            except Exception as wiki_error:
-                logger.error(f"Wikipedia error: {wiki_error}")
-                
-            # Ako Wikipedia ne uspije, probaj Google s biografskim fokusom
-            google_url = f"https://www.google.com/search?q={clean_query}+biografija+osoba&hl=hr&lr=lang_hr"
-            
-        elif query_type == 'definition':
-            # Za definicije prvo probaj hrvatsku Wikipediju
-            wiki_url = f"https://hr.wikipedia.org/wiki/{clean_query.replace(' ', '_')}"
-            try:
-                wiki_response = requests.get(wiki_url, headers=headers, timeout=5)
-                if wiki_response.status_code == 200:
-                    wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
-                    paragraphs = wiki_soup.select('div.mw-parser-output > p')
-                    for p in paragraphs:
-                        if not p.find('span', class_='reference') and len(p.text.strip()) > 50:
-                            text = p.text.strip()
-                            text = re.sub(r'\[\d+\]', '', text)
-                            text = re.sub(r'\([^)]*\)', '', text)
-                            return text[:500] + "..." if len(text) > 500 else text
-                            
-            except Exception as wiki_error:
-                logger.error(f"Wikipedia error: {wiki_error}")
-            
-            # Ako Wikipedia ne uspije, probaj Google s definicijskim fokusom
-            google_url = f"https://www.google.com/search?q=što+je+{clean_query}+definicija&hl=hr&lr=lang_hr"
+            google_url = f"https://www.google.com/search?q=definicija+{clean_query}+značenje&hl=hr"
+        
         else:
-            # Općenito pretraživanje
-            google_url = f"https://www.google.com/search?q={query}&hl=hr&lr=lang_hr"
+            google_url = f"https://www.google.com/search?q={query}&hl=hr"
 
         # Google pretraživanje
-        google_response = requests.get(google_url, headers=headers)
-        if google_response.status_code == 200:
-            google_soup = BeautifulSoup(google_response.text, 'html.parser')
+        response = requests.get(google_url, headers=headers)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Prilagođeni selektori ovisno o tipu upita
+            # Lista selektora za različite tipove rezultata
             selectors = [
                 'div[data-attrid="description"]',
                 'div.kno-rdesc span',
                 'div.VwiC3b',
                 'div.IZ6rdc',
                 'span.hgKElc',
-                'div.wDYxhc',
+                'div.wDYxhc p',
                 'div.LGOjhe',
-                'div.BNeawe.s3v9rd.AP7Wnd',
-                'div.BNeawe.iBp4i.AP7Wnd'
+                'div.BNeawe',
+                'div[data-local-attribute="d3bn"]',
+                'div.abstract',
+                'div.result__snippet'
             ]
             
+            # Provjeri sve selektore
             for selector in selectors:
-                elements = google_soup.select(selector)
+                elements = soup.select(selector)
                 for element in elements:
                     text = element.get_text().strip()
-                    # Provjeri je li tekst relevantan i dovoljno dug
-                    if len(text) > 50 and not any(x in text.lower() for x in ['cookie', 'prijavi se', 'sign in']):
+                    
+                    # Filtriraj nerelevantne rezultate
+                    if len(text) > 50 and not any(x in text.lower() for x in [
+                        'cookie', 
+                        'prijavi se', 
+                        'sign in',
+                        'pretraži',
+                        'results',
+                        'javascript'
+                    ]):
                         # Očisti tekst
                         text = re.sub(r'\s+', ' ', text)
-                        # Prilagodi odgovor tipu upita
-                        if query_type == 'person' and not "Nažalost" in text:
-                            return text[:500] + "..." if len(text) > 500 else text
-                        elif query_type == 'definition' and not "Nažalost" in text:
-                            return text[:500] + "..." if len(text) > 500 else text
-                        elif not query_type and not "Nažalost" in text:
+                        text = re.sub(r'\[\d+\]', '', text)  # Ukloni reference
+                        text = re.sub(r'\([^)]*\)', '', text)  # Ukloni zagrade
+                        
+                        if len(text) > 500:
+                            text = text[:497] + "..."
+
+                        return text
+
+            # Ako nije pronađen rezultat u prvom pokušaju, probaj alternativni URL
+            if query_type == 'person':
+                alt_url = f"https://www.google.com/search?q=tko+je+bio+{clean_query}&hl=hr"
+            elif query_type == 'definition':
+                alt_url = f"https://www.google.com/search?q={clean_query}+objašnjenje+značenje&hl=hr"
+            else:
+                return "Nažalost, ne mogu pronaći informacije o tome."
+
+            # Pokušaj s alternativnim URL-om
+            response = requests.get(alt_url, headers=headers)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                for selector in selectors:
+                    elements = soup.select(selector)
+                    for element in elements:
+                        text = element.get_text().strip()
+                        if len(text) > 50 and not any(x in text.lower() for x in ['cookie', 'prijavi se']):
+                            text = re.sub(r'\s+', ' ', text)
+                            text = re.sub(r'\[\d+\]', '', text)
+                            text = re.sub(r'\([^)]*\)', '', text)
                             return text[:500] + "..." if len(text) > 500 else text
 
-        # Različite poruke za različite tipove upita
+        # Različite poruke za različite tipove upita ako nije pronađen odgovor
         if query_type == 'person':
             return "Nažalost, ne mogu pronaći informacije o toj osobi."
         elif query_type == 'definition':
             return "Nažalost, ne mogu pronaći definiciju ili objašnjenje tog pojma."
         else:
             return "Nažalost, ne mogu pronaći informacije o tome."
-            
+
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return "Došlo je do greške prilikom pretraživanja. Molim pokušajte ponovno."
