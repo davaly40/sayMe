@@ -1,8 +1,6 @@
 let recognition;
 let socket;
 const audioCircle = document.getElementById('audioCircle');
-const INTERRUPT_COMMANDS = ['stani', 'prestani', 'dosta', 'prekini', 'stop', 'zaustaviti', 'šuti'];
-let currentlySpeaking = false;
 
 function updateState(state) {
     updateVisualization(state);
@@ -101,18 +99,7 @@ async function initializeSpeechRecognition() {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
             
-            // Prioritetna provjera interrupt komandi
-            if (INTERRUPT_COMMANDS.some(cmd => command.includes(cmd))) {
-                if (currentlySpeaking) {
-                    speechSynthesis.cancel();
-                    currentlySpeaking = false;
-                    updateState(null);
-                    await speak(getRandomStopResponse());
-                    return;
-                }
-            }
-            
-            // Rest of the existing onresult code...
+            // Dodaj vizualnu povratnu informaciju
             const button = document.getElementById('startButton');
             button.style.background = 'rgba(255, 255, 255, 0.2)';
             setTimeout(() => button.style.background = '', 200);
@@ -235,23 +222,15 @@ async function speak(text) {
     utterance.lang = 'hr-HR';
     
     try {
-        currentlySpeaking = true;
+        if (recognition) {
+            recognition.stop();
+        }
+
         updateState('speaking');
         updateVisualization('speaking');
 
-        // Enable continuous recognition during speech
-        if (recognition) {
-            recognition.continuous = true;
-            recognition.start();
-        }
-
         await new Promise((resolve) => {
             utterance.onend = () => {
-                currentlySpeaking = false;
-                if (recognition) {
-                    recognition.continuous = false;
-                    recognition.stop();
-                }
                 setTimeout(() => {
                     updateState(null);
                     updateVisualization(null);
@@ -259,26 +238,11 @@ async function speak(text) {
                 }, 500);
             };
             
-            utterance.onpause = () => {
-                if (currentlySpeaking) {
-                    currentlySpeaking = false;
-                    updateState(null);
-                    updateVisualization(null);
-                    resolve();
-                }
-            };
-            
-            window.utterance = utterance;
             speechSynthesis.speak(utterance);
         });
 
     } catch (error) {
         console.error('Speak error:', error);
-        currentlySpeaking = false;
-        if (recognition) {
-            recognition.continuous = false;
-            recognition.stop();
-        }
         updateState(null);
         updateVisualization(null);
     }
@@ -478,18 +442,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModals();
     // ...rest of your DOMContentLoaded code...
 });
-
-// Add helper function for random stop responses
-function getRandomStopResponse() {
-    const responses = [
-        "U redu, prestajem.",
-        "Ok, šutim.",
-        "Razumijem, prekidam.",
-        "Dobro, stajem.",
-        "U redu, neću više."
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-}
 
 // ...existing code...
 
