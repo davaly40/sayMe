@@ -464,14 +464,28 @@ def search_web(query: str) -> str:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
-        # Prvo pokušaj Google pretragu
-        google_url = f"https://www.google.com/search?q={query}&hl=hr&lr=lang_hr"
+        # Prepoznaj tip upita
+        is_biographical = query.lower().startswith(('tko je', 'ko je'))
+        
+        # Dodatni izvori za biografske podatke
+        biographical_sources = [
+            f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}",
+            f"https://www.biografija.org/pretraga/{query.replace(' ', '-')}", 
+            f"https://www.biography.com/search?query={query.replace(' ', '+')}"
+        ]
+
+        # Prvo pokušaj Google pretragu s prilagođenim upitom
+        modified_query = query
+        if is_biographical:
+            modified_query = f"biografija {query}"
+        
+        google_url = f"https://www.google.com/search?q={modified_query}&hl=hr&lr=lang_hr"
         google_response = requests.get(google_url, headers=headers)
         
         if google_response.status_code == 200:
             google_soup = BeautifulSoup(google_response.text, 'html.parser')
             
-            # Lista različitih Google selektora za rezultate
+            # Proširena lista Google selektora
             selectors = [
                 'div.VwiC3b',                  # Featured snippet
                 'div.IZ6rdc',                  # Knowledge panel
@@ -481,6 +495,8 @@ def search_web(query: str) -> str:
                 'div.LGOjhe',                  # Another type of result
                 'div.BNeawe.s3v9rd.AP7Wnd',   # Text content
                 'div.BNeawe.iBp4i.AP7Wnd',    # Additional content
+                'div[data-attrid="description"]', # Entity description
+                'div.kno-rdesc span',          # Knowledge graph description
             ]
             
             for selector in selectors:
@@ -490,23 +506,31 @@ def search_web(query: str) -> str:
                     if len(text) > 50 and not text.startswith(('http', 'www')):
                         return text[:500] + "..." if len(text) > 500 else text
 
-        # Ako Google ne uspije, probaj Wikipediju
-        wiki_url = f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}"
-        wiki_response = requests.get(wiki_url, headers=headers)
-        
-        if wiki_response.status_code == 200:
-            wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
-            content = wiki_soup.find('div', {'class': 'mw-parser-output'})
-            
-            if content:
-                paragraphs = content.select('p:not([class])')  # Uzmi samo čiste paragrafe
-                for p in paragraphs:
-                    # Preskoči kratke i prazne paragrafe
-                    text = p.get_text().strip()
-                    if len(text) > 50:
-                        return text[:500] + "..." if len(text) > 500 else text
+        # Ako je biografski upit, provjeri dodatne izvore
+        if is_biographical:
+            for url in biographical_sources:
+                try:
+                    response = requests.get(url, headers=headers, timeout=5)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+                        
+                        # Pokušaj naći relevantni sadržaj
+                        content_selectors = [
+                            'div.mw-parser-output p:not([class])',  # Wikipedia
+                            'div.biography-content',                 # Biography.com
+                            'div.main-content p',                   # Biografija.org
+                        ]
+                        
+                        for selector in content_selectors:
+                            elements = soup.select(selector)
+                            for element in elements:
+                                text = element.get_text().strip()
+                                if len(text) > 50:
+                                    return text[:500] + "..." if len(text) > 500 else text
+                except:
+                    continue
 
-        return "Nažalost, ne mogu pronaći informacije o tome."
+        return "Nažalost, ne mogu pronaći informacije o toj osobi."
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
         return "Došlo je do greške prilikom pretraživanja."
