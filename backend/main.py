@@ -461,39 +461,48 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
 def search_web(query: str) -> str:
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
-        # Prvo traži na hrvatskoj Wikipediji
-        wiki_url = f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}"
-        wiki_response = requests.get(wiki_url, headers=headers)
-        if wiki_response.status_code == 200:
-            wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
-            main_content = wiki_soup.find('div', {'class': 'mw-parser-output'})
-            if main_content:
-                paragraphs = main_content.find_all('p', recursive=False)
-                for p in paragraphs:
-                    text = p.get_text().strip()
-                    if len(text) > 50:  # Provjeravamo je li paragraf dovoljno dug
-                        return text[:500] + "..." if len(text) > 500 else text
-
-        # Ako Wikipedia ne uspije, koristi Google
-        google_url = f"https://www.google.com/search?q={query}&hl=hr"
+        # Prvo pokušaj Google pretragu
+        google_url = f"https://www.google.com/search?q={query}&hl=hr&lr=lang_hr"
         google_response = requests.get(google_url, headers=headers)
+        
         if google_response.status_code == 200:
             google_soup = BeautifulSoup(google_response.text, 'html.parser')
             
-            # Provjeri nekoliko mogućih lokacija za odgovor
-            possible_elements = [
-                google_soup.find('div', {'class': 'BNeawe s3v9rd AP7Wnd'}),
-                google_soup.find('div', {'class': 'kCrYT'}),
-                google_soup.find('div', {'class': 'Z0LcW'}),
-                google_soup.find('div', {'class': 'ILfuVd'}),
+            # Lista različitih Google selektora za rezultate
+            selectors = [
+                'div.VwiC3b',                  # Featured snippet
+                'div.IZ6rdc',                  # Knowledge panel
+                'span.hgKElc',                 # Direct answer
+                'div.wDYxhc',                  # Standard result
+                'div.kno-rdesc',               # Knowledge description
+                'div.LGOjhe',                  # Another type of result
+                'div.BNeawe.s3v9rd.AP7Wnd',   # Text content
+                'div.BNeawe.iBp4i.AP7Wnd',    # Additional content
             ]
-
-            for element in possible_elements:
-                if element:
+            
+            for selector in selectors:
+                elements = google_soup.select(selector)
+                for element in elements:
                     text = element.get_text().strip()
+                    if len(text) > 50 and not text.startswith(('http', 'www')):
+                        return text[:500] + "..." if len(text) > 500 else text
+
+        # Ako Google ne uspije, probaj Wikipediju
+        wiki_url = f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}"
+        wiki_response = requests.get(wiki_url, headers=headers)
+        
+        if wiki_response.status_code == 200:
+            wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
+            content = wiki_soup.find('div', {'class': 'mw-parser-output'})
+            
+            if content:
+                paragraphs = content.select('p:not([class])')  # Uzmi samo čiste paragrafe
+                for p in paragraphs:
+                    # Preskoči kratke i prazne paragrafe
+                    text = p.get_text().strip()
                     if len(text) > 50:
                         return text[:500] + "..." if len(text) > 500 else text
 
@@ -616,6 +625,8 @@ def get_weather_info(city: str, days_offset: int = 0) -> str:
             day_str = "danas"
         elif days_offset == 1:
             day_str = "sutra"
+        elif days_offset == 2:
+            day_str = "prekosutra"
         else:
             day_str = target_date.strftime('%A').lower()
         
