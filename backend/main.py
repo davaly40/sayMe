@@ -47,7 +47,7 @@ app.add_middleware(
 DEFAULT_RESPONSES = [
     "Nisam siguran što želite reći. Možete li preformulirati?",
     "Oprostite, nisam razumio. Možete li ponoviti drugim riječima?",
-    "Hmm, nisam siguran što to znači. Pokušajte drugačije.",
+    "Hhm, nisam siguran što to znači. Pokušajte drugačije.",
     "Nije mi jasno. Možete li pitati na drugi način?",
     "To mi nije poznato. Možete li pojasniti?",
     "Žao mi je, ali ne razumijem. Pokušajte postaviti pitanje drugačije.",
