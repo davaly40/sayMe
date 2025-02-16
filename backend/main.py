@@ -460,51 +460,78 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
 
 def search_web(query: str) -> str:
     try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
         # Clean and prepare query
         clean_query = query.lower().strip()
+        query_type = None
+        subject = ""
         
-        # Za "tko je" pitanja vrati standardni odgovor
+        # Detect query type and extract subject
         if clean_query.startswith(('tko je', 'ko je')):
-            return "Žao mi je, ne dajem informacije o bilo kakvim javnim ili privatnim osobama."
-            
-        # Za "što je" pitanja pretraži Wikipediju
-        if clean_query.startswith(('što je', 'šta je')):
-            # Izvuci pojam iz upita
+            query_type = 'person'
+            subject = re.sub(r'^(tko|ko)\s+je\s+', '', clean_query).strip()
+        elif clean_query.startswith(('što je', 'šta je')):
+            query_type = 'definition'
             subject = re.sub(r'^(što|šta)\s+je\s+', '', clean_query).strip()
-            subject = subject.rstrip('?').strip()
-            
-            if not subject:
-                return "Molim vas dopunite pitanje."
+        
+        subject = subject.rstrip('?').strip()
+        if not subject:
+            return "Molim vas dopunite pitanje."
 
-            # Pripremi URL za Wikipediju
-            wiki_url = f"https://hr.wikipedia.org/wiki/{subject.replace(' ', '_').title()}"
-            
-            response = requests.get(wiki_url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }, timeout=5)
-            
+        # Convert subject to title case for URL but keep original for display
+        wiki_subject = "_".join(w.capitalize() for w in subject.split())
+        
+        # Try direct Wikipedia article first
+        wiki_url = f"https://hr.wikipedia.org/wiki/{wiki_subject}"
+        
+        try:
+            response = requests.get(wiki_url, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Traži prvi značajan paragraf
-                for p in soup.find_all('p'):
-                    # Preskoči prazne paragrafe i one s koordinatama
-                    if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
+                # Check if it's a disambiguation page
+                if soup.find('div', {'class': 'mw-disambig'}) or "može značiti" in soup.text:
+                    # If disambiguation page, try search
+                    search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno%3ATraži&profile=advanced&fulltext=1&ns0=1"
+                    response = requests.get(search_url, headers=headers)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+                        result = soup.find('div', class_='mw-search-result-heading')
+                        if result and result.find('a'):
+                            wiki_url = "https://hr.wikipedia.org" + result.find('a')['href']
+                            response = requests.get(wiki_url, headers=headers)
+                            soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Find first meaningful paragraph
+                content = soup.find('div', {'class': 'mw-parser-output'})
+                if content:
+                    # Skip tables and infoboxes
+                    paragraphs = content.find_all('p', recursive=False)
+                    for p in paragraphs:
                         text = p.text.strip()
-                        # Očisti tekst od referenci i zagrada
-                        text = re.sub(r'\[\d+\]', '', text)
-                        text = re.sub(r'\([^)]*\)', '', text)
-                        text = re.sub(r'\s+', ' ', text)
-                        
-                        # Dodaj "X je" ako ne počinje s traženim pojmom
-                        if not text.lower().startswith(subject.lower()):
-                            text = f"{subject} je " + text
-                        
-                        return text[:500] + "..." if len(text) > 500 else text
-                        
-            # Ako nema direktnog pogotka, probaj pretragu
-            search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno:Traži"
-            response = requests.get(search_url, headers={'User-Agent': 'Mozilla/5.0'})
+                        # Check if paragraph is meaningful
+                        if len(text) > 50 and not p.find('span', class_='coordinates'):
+                            # Clean up the text
+                            text = re.sub(r'\[\d+\]', '', text)  # Remove references
+                            text = re.sub(r'\([^)]*\)', '', text)  # Remove parentheses
+                            text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+                            
+                            # Format response
+                            if not text.lower().startswith(subject.lower()):
+                                prefix = f"{subject} je"
+                                if query_type == 'person':
+                                    # Capitalize person's name
+                                    prefix = f"{subject.title()} je"
+                                text = f"{prefix} {text}"
+                            
+                            return text[:500] + "..." if len(text) > 500 else text
+            
+            # If direct lookup fails, try search
+            search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno%3ATraži&profile=advanced&fulltext=1&ns0=1"
+            response = requests.get(search_url, headers=headers)
             
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -512,24 +539,29 @@ def search_web(query: str) -> str:
                 
                 if result and result.find('a'):
                     article_url = "https://hr.wikipedia.org" + result.find('a')['href']
-                    response = requests.get(article_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    response = requests.get(article_url, headers=headers)
                     soup = BeautifulSoup(response.text, 'html.parser')
                     
                     for p in soup.find_all('p'):
-                        if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
-                            text = p.text.strip()
+                        text = p.text.strip()
+                        if len(text) > 50 and not p.find('span', class_='coordinates'):
                             text = re.sub(r'\[\d+\]', '', text)
                             text = re.sub(r'\([^)]*\)', '', text)
                             text = re.sub(r'\s+', ' ', text)
                             
                             if not text.lower().startswith(subject.lower()):
-                                text = f"{subject} je " + text
+                                prefix = f"{subject} je"
+                                if query_type == 'person':
+                                    prefix = f"{subject.title()} je"
+                                text = f"{prefix} {text}"
                             
                             return text[:500] + "..." if len(text) > 500 else text
             
-            return f"Nažalost, ne mogu pronaći informacije o tome što je {subject}."
-        
-        return "Nisam razumio pitanje. Možete li preformulirati?"
+            return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
+
+        except requests.RequestException as e:
+            logger.error(f"Request error: {str(e)}")
+            return "Došlo je do greške pri pretraživanju. Molim pokušajte ponovno."
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
