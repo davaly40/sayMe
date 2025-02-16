@@ -708,12 +708,16 @@ def get_day_offset(text: str) -> int:
 
     return 0
 
+INTERRUPT_COMMANDS = ['stani', 'prestani', 'dosta', 'prekini', 'stop', 'zaustaviti', 'šuti']
+active_responses = {}  # Track active responses for each client
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
         await websocket.accept()
         client_id = str(id(websocket))
         conversation_states[client_id] = ConversationState()
+        active_responses[client_id] = False
         logger.info("WebSocket connection established")
         
         while True:
@@ -722,6 +726,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 logger.info(f"Received command: {text}")
                 
                 text = text.lower().strip()
+                
+                # Check for interrupt command
+                if any(cmd in text for cmd in INTERRUPT_COMMANDS):
+                    if active_responses.get(client_id):
+                        active_responses[client_id] = False
+                        await websocket.send_text("U redu, prestajem.")
+                        continue
+
+                # Set active response flag
+                active_responses[client_id] = True
+                
+                # Rest of your existing command processing code...
                 response = None
                 state = conversation_states[client_id]
 
@@ -800,11 +816,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 if not response:
                     response = random.choice(DEFAULT_RESPONSES)
                 
-                logger.info(f"Sending response: {response}")
-                await websocket.send_text(response)
+                # Only send response if not interrupted
+                if active_responses.get(client_id):
+                    logger.info(f"Sending response: {response}")
+                    await websocket.send_text(response)
                 
+                active_responses[client_id] = False
+
             except WebSocketDisconnect:
                 del conversation_states[client_id]
+                del active_responses[client_id]
                 logger.info("Client disconnected")
                 break
             except Exception as e:

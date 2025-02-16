@@ -1,6 +1,8 @@
 let recognition;
 let socket;
 const audioCircle = document.getElementById('audioCircle');
+const INTERRUPT_COMMANDS = ['stani', 'prestani', 'dosta', 'prekini', 'stop', 'zaustaviti', 'šuti'];
+let currentlySpeaking = false;
 
 function updateState(state) {
     updateVisualization(state);
@@ -99,7 +101,18 @@ async function initializeSpeechRecognition() {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
             
-            // Dodaj vizualnu povratnu informaciju
+            // Check if this is an interrupt command
+            if (currentlySpeaking && INTERRUPT_COMMANDS.some(cmd => command.includes(cmd))) {
+                if (window.utterance) {
+                    speechSynthesis.cancel();
+                    currentlySpeaking = false;
+                    updateState(null);
+                    await speak("U redu, prestajem.");
+                    return;
+                }
+            }
+            
+            // Rest of the existing onresult code...
             const button = document.getElementById('startButton');
             button.style.background = 'rgba(255, 255, 255, 0.2)';
             setTimeout(() => button.style.background = '', 200);
@@ -228,9 +241,11 @@ async function speak(text) {
 
         updateState('speaking');
         updateVisualization('speaking');
+        currentlySpeaking = true;
 
         await new Promise((resolve) => {
             utterance.onend = () => {
+                currentlySpeaking = false;
                 setTimeout(() => {
                     updateState(null);
                     updateVisualization(null);
@@ -238,11 +253,13 @@ async function speak(text) {
                 }, 500);
             };
             
+            window.utterance = utterance; // Store reference for interruption
             speechSynthesis.speak(utterance);
         });
 
     } catch (error) {
         console.error('Speak error:', error);
+        currentlySpeaking = false;
         updateState(null);
         updateVisualization(null);
     }
