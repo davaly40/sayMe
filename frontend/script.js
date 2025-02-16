@@ -18,13 +18,11 @@ function updateState(state) {
     }
 }
 
-// Modificirajte appendMessage funkciju da samo logira poruke umjesto da ih prikazuje
 function appendMessage(text, isUser = false) {
     console.log(`${isUser ? 'User' : 'SayMe'}: ${text}`);
 }
 
 function formatResponse(text) {
-    // Uklonimo ovu funkciju koja je mijenjala tekst
     return text;
 }
 
@@ -156,7 +154,6 @@ function checkDeviceCompatibility() {
 
 async function initializeWebSocket() {
     try {
-        // Koristi relativnu putanju za WebSocket
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
         
@@ -168,7 +165,6 @@ async function initializeWebSocket() {
         
         socket.onmessage = async function(event) {
             try {
-                // Pokušaj parsirati kao JSON
                 const data = JSON.parse(event.data);
                 if (data.type === 'openUrl') {
                     handleUrlOpen(data);
@@ -176,7 +172,6 @@ async function initializeWebSocket() {
                     return;
                 }
             } catch (e) {
-                // Ako nije JSON, tretiraj kao običan tekst
                 appendMessage(event.data, false);
             }
             const response = formatResponse(event.data);
@@ -448,206 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ...rest of your DOMContentLoaded code...
 });
 
-async function handleCameraRequest(isFrontCamera = false, withTimer = false) {
-    try {
-        const constraints = {
-            video: {
-                facingMode: isFrontCamera ? "user" : "environment"
-            }
-        };
-        
-        // Prvo zatvori postojeći stream ako postoji
-        if (cameraStream) {
-            cameraStream.getTracks().forEach(track => track.stop());
-        }
-
-        // Stvori novi video element
-        let video = document.createElement('video');
-        video.style.position = 'fixed';
-        video.style.top = '0';
-        video.style.left = '0';
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'cover';
-        video.style.zIndex = '1000';
-        document.body.appendChild(video);
-
-        // Dobavi stream kamere
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        cameraStream = stream;
-        video.srcObject = stream;
-        await video.play();
-
-        if (withTimer) {
-            // Dodaj timer overlay
-            let timerDiv = document.createElement('div');
-            timerDiv.style.position = 'fixed';
-            timerDiv.style.top = '50%';
-            timerDiv.style.left = '50%';
-            timerDiv.style.transform = 'translate(-50%, -50%)';
-            timerDiv.style.fontSize = '72px';
-            timerDiv.style.color = 'white';
-            timerDiv.style.zIndex = '1001';
-            document.body.appendChild(timerDiv);
-
-            // Timer countdown
-            for (let i = 5; i > 0; i--) {
-                timerDiv.textContent = i;
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Slikaj
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            // Spremi sliku
-            const photo = canvas.toDataURL('image/jpeg');
-            const link = document.createElement('a');
-            link.download = 'selfie.jpg';
-            link.href = photo;
-            link.click();
-
-            // Čišćenje
-            timerDiv.remove();
-        }
-
-        // Dodaj gumb za zatvaranje
-        const closeButton = document.createElement('button');
-        closeButton.textContent = '✕';
-        closeButton.style.position = 'fixed';
-        closeButton.style.top = '20px';
-        closeButton.style.right = '20px';
-        closeButton.style.zIndex = '1001';
-        closeButton.style.backgroundColor = 'rgba(0,0,0,0.5)';
-        closeButton.style.color = 'white';
-        closeButton.style.border = 'none';
-        closeButton.style.borderRadius = '50%';
-        closeButton.style.width = '40px';
-        closeButton.style.height = '40px';
-        closeButton.style.cursor = 'pointer';
-        
-        closeButton.onclick = () => {
-            video.remove();
-            closeButton.remove();
-            stream.getTracks().forEach(track => track.stop());
-            cameraStream = null;
-        };
-        
-        document.body.appendChild(closeButton);
-
-    } catch (error) {
-        console.error('Camera error:', error);
-        alert('Greška pri pristupu kameri. Molimo dozvolite pristup kameri.');
-    }
-}
-
-async function handleAlarmRequest(text) {
-    try {
-        // Izvuci vrijeme iz teksta
-        const timeMatch = text.match(/(\d{1,2})(?::\d{2})?\s*(ujutro|navečer|navecer|popodne|predvečer|predvecer|noću|nocu|h)?/);
-        if (!timeMatch) {
-            throw new Error('Nije pronađeno vrijeme u zahtjevu');
-        }
-
-        let hours = parseInt(timeMatch[1]);
-        const period = timeMatch[2];
-
-        // Prilagodi sate prema periodu dana
-        if (period) {
-            if (period === 'popodne' || period === 'predvečer' || period === 'predvecer') {
-                if (hours < 12) hours += 12;
-            } else if ((period === 'navečer' || period === 'navecer' || period === 'noću' || period === 'nocu') && hours < 12) {
-                hours += 12;
-            } else if (period === 'ujutro' && hours === 12) {
-                hours = 0;
-            }
-        }
-
-        // Provjeri podržava li uređaj alarm API
-        if ('wakeLock' in navigator || 'setAlarm' in navigator) {
-            // Za moderne uređaje
-            const timestamp = new Date();
-            timestamp.setHours(hours, 0, 0, 0);
-            
-            if (timestamp < new Date()) {
-                timestamp.setDate(timestamp.getDate() + 1);
-            }
-
-            // Pokušaj postaviti alarm
-            if ('setAlarm' in navigator) {
-                await navigator.setAlarm(timestamp.getTime());
-            } else {
-                // Fallback na notifications
-                const notification = await requestNotificationPermission();
-                if (notification) {
-                    scheduleNotification(timestamp);
-                }
-            }
-            
-            return `Alarm postavljen za ${hours}:00h`;
-        } else {
-            // Fallback na sistemski kalendar
-            const calendarUrl = createCalendarEvent(hours);
-            window.open(calendarUrl, '_blank');
-            return `Otvoreno je sučelje za postavljanje alarma za ${hours}:00h`;
-        }
-    } catch (error) {
-        console.error('Alarm error:', error);
-        return 'Nisam uspio postaviti alarm. Pokušajte ručno postaviti alarm na vašem uređaju.';
-    }
-}
-
-async function requestNotificationPermission() {
-    if (!('Notification' in window)) {
-        return false;
-    }
-    
-    const permission = await Notification.requestPermission();
-    return permission === 'granted';
-}
-
-function scheduleNotification(timestamp) {
-    const now = new Date().getTime();
-    const delay = timestamp.getTime() - now;
-    
-    setTimeout(() => {
-        new Notification('Alarm', {
-            body: 'Vrijeme je za buđenje!',
-            icon: '/assets/logo.png'
-        });
-    }, delay);
-}
-
-function createCalendarEvent(hours) {
-    const date = new Date();
-    date.setHours(hours, 0, 0, 0);
-    if (date < new Date()) {
-        date.setDate(date.getDate() + 1);
-    }
-    
-    const dateString = date.toISOString().replace(/[-:]/g, '').split('.')[0];
-    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${dateString}\nDURATION:PT10M\nSUMMARY:Alarm\nEND:VEVENT\nEND:VCALENDAR`;
-}
-
-// Modificiraj postojeći handleCommand da uključi nove komande
-async function handleCommand(text) {
-    // ...existing code...
-    
-    if (/^(upali kameru|kamera|fotoaparat)$/i.test(text)) {
-        await handleCameraRequest();
-        return "Kamera je upaljena";
-    } else if (/^(zabilježi ovaj trenutak|selfi)$/i.test(text)) {
-        await handleCameraRequest(true, true);
-        return "Pripremam selfi s timerom...";
-    } else if (/^(probudi me|navij alarm|namjesti budilicu)/i.test(text)) {
-        return await handleAlarmRequest(text);
-    }
-    
-    // ...existing code...
-}
-
 // ...existing code...
 
 function handleServerResponse(response) {
@@ -669,85 +464,6 @@ function handleServerResponse(response) {
         // Not JSON, handle as regular text response
         speak(response);
     }
-}
-
-async function openCamera(mode) {
-    try {
-        const constraints = {
-            video: {
-                facingMode: mode === 'front' ? 'user' : 'environment'
-            }
-        };
-        
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.autoplay = true;
-        video.style.position = 'fixed';
-        video.style.top = '0';
-        video.style.left = '0';
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.zIndex = '1000';
-        
-        document.body.appendChild(video);
-        
-        // Add close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.position = 'fixed';
-        closeBtn.style.top = '20px';
-        closeBtn.style.right = '20px';
-        closeBtn.style.zIndex = '1001';
-        closeBtn.onclick = () => {
-            stream.getTracks().forEach(track => track.stop());
-            video.remove();
-            closeBtn.remove();
-        };
-        document.body.appendChild(closeBtn);
-        
-    } catch (err) {
-        speak("Nažalost, ne mogu pristupiti kameri. Molim vas provjerite dozvole.");
-    }
-}
-
-function setAlarm(hours, minutes) {
-    // Check if the browser supports notifications
-    if (!("Notification" in window)) {
-        speak("Vaš preglednik ne podržava alarme.");
-        return;
-    }
-
-    // Request notification permission
-    Notification.requestPermission().then(function(permission) {
-        if (permission === "granted") {
-            const now = new Date();
-            const alarmTime = new Date();
-            alarmTime.setHours(hours);
-            alarmTime.setMinutes(minutes);
-            alarmTime.setSeconds(0);
-            
-            // If the time is in the past, set it for tomorrow
-            if (alarmTime < now) {
-                alarmTime.setDate(alarmTime.getDate() + 1);
-            }
-            
-            const timeUntilAlarm = alarmTime - now;
-            
-            setTimeout(() => {
-                new Notification("SayMe Alarm", {
-                    body: `Vrijeme je ${hours}:${minutes.toString().padStart(2, '0')}!`,
-                    icon: "/assets/logo.png"
-                });
-                
-                // Also play a sound
-                const audio = new Audio('/assets/alarm.mp3');
-                audio.play();
-            }, timeUntilAlarm);
-            
-            speak(`Alarm je postavljen za ${hours}:${minutes.toString().padStart(2, '0')}`);
-        }
-    });
 }
 
 // ...rest of the existing code...

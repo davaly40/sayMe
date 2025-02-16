@@ -248,14 +248,6 @@ COMMANDS: Dict[str, str] = {
     "ne želim": "U redu, kako ti još mogu pomoći?",
     "neću": "U redu, kako ti još mogu pomoći?",
 
-    "upali kameru": "Pokrećem kameru...",
-    "kamera": "Pokrećem kameru...",
-    "fotoaparat": "Pokrećem kameru...",
-    "zabilježi ovaj trenutak": "Pripremam selfi s timerom...",
-    "selfi": "Pripremam selfi s timerom...",
-    "probudi me": "U koje vrijeme želite alarm?",
-    "navij alarm": "U koje vrijeme želite alarm?",
-    "namjesti budilicu": "U koje vrijeme želite alarm?",
 }
 
 CROATIAN_DAYS = {
@@ -422,36 +414,28 @@ CITY_NAMES = {
 @dataclass
 class ConversationState:
     waiting_for_city: bool = False
-    waiting_for_alarm_time: bool = False
     last_query_type: Optional[str] = None
-    camera_active: bool = False
 
 conversation_states: Dict[str, ConversationState] = {}
 
 def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
-    # Očisti input
     cleaned_input = re.sub(r'[^\w\s]', '', user_input.lower()).strip()
     cleaned_input = ' '.join(cleaned_input.split())
     
-    # Provjeri je li samo pozdrav
     greetings = ["ej", "hej", "bok", "e", "ee", "pozdrav"]
     if cleaned_input in greetings:
         return COMMANDS[cleaned_input]
     
-    # Ukloni pozdrave iz inputa ako postoje
     for greeting in greetings:
         if cleaned_input.startswith(greeting):
             cleaned_input = cleaned_input[len(greeting):].strip()
     
-    # Provjeri vrijeme
     if any(phrase in cleaned_input for phrase in ["koliko je sati", "koje je vrijeme"]):
         return get_time()
         
-    # Exact match za preostale komande
     if cleaned_input in COMMANDS:
         return COMMANDS[cleaned_input]
     
-    # Fuzzy match kao fallback
     for cmd in COMMANDS:
         if cleaned_input in cmd or cmd in cleaned_input:
             return COMMANDS[cmd]
@@ -476,72 +460,54 @@ def search_web(query: str) -> str:
         elif clean_query.startswith(('što je', 'šta je')):
             query_type = 'definition'
             subject = re.sub(r'^(što|šta)\s+je\s+', '', clean_query).strip()
-        
-        subject = subject.rstrip('?').strip()
+            
+        subject = subject.rstrip('?')
         if not subject:
             return "Molim vas dopunite pitanje."
 
         # Try Croatian Wikipedia first
-        result = try_wikipedia_search(subject, 'hr', headers)
+        wiki_url = f"https://hr.wikipedia.org/wiki/{subject.replace(' ', '_').title()}"
+        response = requests.get(wiki_url, headers=headers)
         
-        # If no Croatian result, try English translation
-        if not result:
-            # Check common translations first
-            eng_subject = COMMON_TRANSLATIONS.get(subject)
-            if eng_subject:
-                result = try_wikipedia_search(eng_subject, 'en', headers)
-                if result:
-                    # Add Croatian context to English result
-                    if not result.lower().startswith(subject.lower()):
-                        result = f"{subject} je " + result
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            content = soup.find('div', class_='mw-parser-output')
             
-        if result:
-            return result[:500] + "..." if len(result) > 500 else result
-            
-        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
+            if content:
+                # Skip tables and infoboxes
+                paragraphs = content.find_all('p', recursive=False)
+                for p in paragraphs:
+                    text = p.text.strip()
+                    # Check if paragraph is meaningful
+                    if len(text) > 50 and not p.find('span', class_='coordinates'):
+                        # Clean up the text
+                        text = re.sub(r'\[\d+\]', '', text)  # Remove references
+                        text = re.sub(r'\([^)]*\)', '', text)  # Remove parentheses
+                        text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+                        
+                        # Format response based on query type
+                        if not text.lower().startswith(subject.lower()):
+                            prefix = f"{subject} je"
+                            if query_type == 'person':
+                                prefix = f"{subject.title()} je"
+                            text = f"{prefix} {text}"
+                            
+                        return text[:500] + "..." if len(text) > 500 else text
 
-    except Exception as e:
-        logger.error(f"Search error: {str(e)}")
-        return "Došlo je do greške prilikom pretraživanja. Molim pokušajte ponovno."
-                            soup = BeautifulSoup(response.text, 'html.parser')
-                
-                # Find first meaningful paragraph
-                content = soup.find('div', {'class': 'mw-parser-output'})
-                if content:
-                    # Skip tables and infoboxes
-                    paragraphs = content.find_all('p', recursive=False)
-                    for p in paragraphs:
-                        text = p.text.strip()
-                        # Check if paragraph is meaningful
-                        if len(text) > 50 and not p.find('span', class_='coordinates'):
-                            # Clean up the text
-                            text = re.sub(r'\[\d+\]', '', text)  # Remove references
-                            text = re.sub(r'\([^)]*\)', '', text)  # Remove parentheses
-                            text = re.sub(r'\s+', ' ', text)  # Normalize spaces
-                            
-                            # Format response
-                            if not text.lower().startswith(subject.lower()):
-                                prefix = f"{subject} je"
-                                if query_type == 'person':
-                                    # Capitalize person's name
-                                    prefix = f"{subject.title()} je"
-                                text = f"{prefix} {text}"
-                            
-                            return text[:500] + "..." if len(text) > 500 else text
+        # If direct lookup fails, try search
+        search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno%3ATraži&profile=advanced&fulltext=1&ns0=1"
+        response = requests.get(search_url, headers=headers)
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            result = soup.find('div', class_='mw-search-result-heading')
             
-            # If direct lookup fails, try search
-            search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno%3ATraži&profile=advanced&fulltext=1&ns0=1"
-            response = requests.get(search_url, headers=headers)
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                result = soup.find('div', class_='mw-search-result-heading')
+            if result and result.find('a'):
+                article_url = "https://hr.wikipedia.org" + result.find('a')['href']
+                response = requests.get(article_url, headers=headers)
                 
-                if result and result.find('a'):
-                    article_url = "https://hr.wikipedia.org" + result.find('a')['href']
-                    response = requests.get(article_url, headers=headers)
+                if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
-                    
                     for p in soup.find_all('p'):
                         text = p.text.strip()
                         if len(text) > 50 and not p.find('span', class_='coordinates'):
@@ -557,11 +523,7 @@ def search_web(query: str) -> str:
                             
                             return text[:500] + "..." if len(text) > 500 else text
             
-            return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
-
-        except requests.RequestException as e:
-            logger.error(f"Request error: {str(e)}")
-            return "Došlo je do greške pri pretraživanju. Molim pokušajte ponovno."
+        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
@@ -570,7 +532,6 @@ def search_web(query: str) -> str:
 def open_website(name: str) -> str:
     name = name.lower().strip()
     
-    # Provjeri je li navigacija
     if any(term in name for term in ["navigacija", "maps", "karte"]):
         url = WEBSITES["maps"]
         mobile_url = MOBILE_APPS["maps"]
@@ -581,11 +542,9 @@ def open_website(name: str) -> str:
             "message": "Otvaram Google Maps"
         })
     
-    # Provjeri portale vijesti
     if "vijesti" in name or "portal" in name:
         return f"Koje vijesti želite otvoriti? Dostupni su: {', '.join(NEWS_PORTALS.keys())}"
     
-    # Provjeri je li naveden neki portal vijesti
     for portal_name, url in NEWS_PORTALS.items():
         if portal_name in name:
             return json.dumps({
@@ -594,7 +553,6 @@ def open_website(name: str) -> str:
                 "message": f"Otvaram portal {portal_name.upper()}"
             })
     
-    # Provjeri ostale web stranice
     for site_name, url in WEBSITES.items():
         if site_name in name:
             mobile_url = MOBILE_APPS.get(site_name, "")
@@ -622,21 +580,17 @@ def open_website(name: str) -> str:
 
 def get_time() -> str:
     now = datetime.now()
-    # Dodaj UTC+1 za hrvatsko vrijeme
     hour = (now.hour + 1) % 24
     minute = now.minute
     
-    # Formatiranje minuta
     minute_str = f"0{minute}" if minute < 10 else str(minute)
     
     return f"Trenutno je {hour} sati i {minute_str} minuta"
 
 def extract_city_and_time(text: str) -> Tuple[Optional[str], bool]:
-    """Extract city name and check if query is for tomorrow"""
     text = text.lower()
     is_tomorrow = "sutra" in text
     
-    # Pronađi grad u tekstu
     for city_variant in CITY_NAMES.keys():
         if city_variant in text:
             return CITY_NAMES[city_variant], is_tomorrow
@@ -676,7 +630,6 @@ def get_weather_info(city: str, days_offset: int = 0) -> str:
         weather = forecast['weather'][0]['description']
         humidity = forecast['main']['humidity']
         
-        # Get day name for the forecast
         if days_offset == 0:
             day_str = "danas"
         elif days_offset == 1:
@@ -694,74 +647,16 @@ def get_weather_info(city: str, days_offset: int = 0) -> str:
         logger.error(f"Error getting weather: {str(e)}")
         return "Došlo je do greške pri dohvaćanju vremenske prognoze."
 
-def parse_time(text: str) -> Optional[tuple]:
-    """Parse time from text input"""
-    text = text.lower().strip()
-    
-    # Common time patterns in Croatian
-    time_patterns = {
-        r'(\d{1,2})\s*(?:sati|sata|h)(?:\s*i\s*(\d{1,2}))?\s*(?:min(?:uta)?)?': lambda h, m: (int(h), int(m) if m else 0),
-        r'(\d{1,2}):(\d{1,2})': lambda h, m: (int(h), int(m)),
-        r'(\d{1,2})\s*i\s*(\d{1,2})': lambda h, m: (int(h), int(m)),
-        r'u\s*(\d{1,2})(?:\s*(?:sati|sata|h))?': lambda h, _: (int(h), 0),
-    }
-    
-    for pattern, converter in time_patterns.items():
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return converter(*match.groups(0))
-            except ValueError:
-                return None
-    
-    return None
-
-def handle_camera_request(text: str) -> str:
-    """Handle camera-related requests"""
-    text = text.lower().strip()
-    
-    if "prednju" in text or "prednja" in text or "selfi" in text:
-        return json.dumps({
-            "type": "openCamera",
-            "mode": "front",
-            "message": "Otvaram prednju kameru..."
-        })
-    elif "stražnju" in text or "straznju" in text or "zadnju" in text:
-        return json.dumps({
-            "type": "openCamera",
-            "mode": "back",
-            "message": "Otvaram stražnju kameru..."
-        })
-    else:
-        return "Želite li prednju ili stražnju kameru?"
-
-def handle_alarm_request(text: str) -> str:
-    """Handle alarm-related requests"""
-    time_tuple = parse_time(text)
-    if time_tuple:
-        hours, minutes = time_tuple
-        if 0 <= hours <= 23 and 0 <= minutes <= 59:
-            return json.dumps({
-                "type": "setAlarm",
-                "hours": hours,
-                "minutes": minutes,
-                "message": f"Postavljam alarm za {hours:02d}:{minutes:02d}"
-            })
-    return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'"
-
 def get_date_info(days_offset: int = 0) -> str:
     try:
         target_date = datetime.now() + timedelta(days=days_offset)
         
-        # Dohvati imena dana i mjeseca na engleskom
         weekday_eng = target_date.strftime('%A')
         month_eng = target_date.strftime('%B')
         
-        # Pretvori u hrvatske nazive
         weekday = CROATIAN_DAYS.get(weekday_eng, weekday_eng).capitalize()
         month = CROATIAN_MONTHS.get(month_eng, month_eng)
         
-        # Formatiraj datum
         date_str = f"{target_date.day}. {month} {target_date.year}."
         
         if days_offset == 0:
@@ -780,7 +675,6 @@ def get_date_info(days_offset: int = 0) -> str:
 def get_day_offset(text: str) -> int:
     text = text.lower()
     
-    # Check specific keywords first
     if "prekosutra" in text:
         return 2
     elif "sutra" in text:
@@ -788,7 +682,6 @@ def get_day_offset(text: str) -> int:
     elif "danas" in text:
         return 0
 
-    # Map Croatian days to numbers
     days_mapping = {
         'ponedjeljak': 0,
         'utorak': 1,
@@ -832,10 +725,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 response = None
                 state = conversation_states[client_id]
 
-                # Prvo provjeri je li to pretraživački upit
                 if text.startswith(("što je", "šta je", "tko je", "ko je")):
                     response = search_web(text)
-                # Ostali slučajevi...
                 elif any(phrase in text for phrase in [
                     "koliko je sati",
                     "koje je vrijeme na satu",
@@ -851,10 +742,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     "koliko je sati sada",
                 ]):
                     response = get_time()
-                # Zatim provjeri ostale slučajeve
                 elif state.waiting_for_city:
                     city = None
-                    # Prepoznaj grad iz odgovora
                     for city_variant in CITY_NAMES.keys():
                         if city_variant in text or f"za {city_variant}" in text:
                             city = CITY_NAMES[city_variant]
@@ -866,9 +755,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     else:
                         response = "Nisam prepoznao grad. Molim vas navedite neki hrvatski grad."
                         
-                # Ako nije odgovor na prethodno pitanje, nastavi normalno
                 else:
-                    # Provjeri je li pitanje o vremenu/prognozi
                     if any(phrase in text for phrase in [
                         "kakvo je vrijeme", "kakvo će biti vrijeme",
                         "hoće li padati kiša", "da li će padati kiša",
@@ -884,48 +771,31 @@ async def websocket_endpoint(websocket: WebSocket):
                             state.last_query_type = "weather"
                             response = "Za koji grad želite znati vremensku prognozu?"
                     
-                    # Provjeri vrijeme
                     elif "koliko je sati" in text or "koje je vrijeme" in text:
                         response = get_time()
-                    # Provjeri je li pitanje za pretraživanje
                     elif any(text.startswith(prefix) for prefix in ["što je", "šta je", "tko je", "ko je"]):
-                        query = ' '.join(text.split()[2:])  # Uzmi sve nakon "što je"/"tko je"
-                        if query:  # Provjeri da query nije prazan
+                        query = ' '.join(text.split()[2:])
+                        if query:
                             response = search_web(query)
                         else:
                             response = "Molim vas dopunite pitanje."
-                    # Provjeri je li naredba za otvaranje
                     elif any(word in text for word in ["otvori", "upali", "pokreni"]):
                         site_name = text.split(text.split()[0], 1)[1].strip()
                         response = open_website(site_name)
-                    # Provjeri ostale komande
-                    elif state.waiting_for_alarm_time:
-                        state.waiting_for_alarm_time = False
-                        response = handle_alarm_request(text)
-                    elif state.camera_active:
-                        state.camera_active = False
-                        response = handle_camera_request(text)
-                    else:
-                        if any(cmd in text for cmd in ["upali kameru", "kamera", "fotoaparat", "selfi"]):
-                            state.camera_active = True
-                            response = "Želite li prednju ili stražnju kameru?"
-                        elif any(cmd in text for cmd in ["probudi me", "navij alarm", "namjesti budilicu"]):
-                            state.waiting_for_alarm_time = True
-                            response = "U koje vrijeme želite alarm?"
-                        elif any(phrase in text for phrase in [
-                            "koji je dan", "koji je datum",
-                            "koji će dan biti", "koji dan je"
-                        ]):
-                            days_offset = get_day_offset(text)
-                            response = get_date_info(days_offset)
-                        elif text in COMMANDS:
-                            cmd = COMMANDS[text]
-                            if callable(cmd):  # Ako je funkcija
-                                response = cmd()
-                            else:  # Ako je string
-                                response = cmd
+                    elif any(phrase in text for phrase in [
+                        "koji je dan", "koji je datum",
+                        "koji će dan biti", "koji dan je"
+                    ]):
+                        days_offset = get_day_offset(text)
+                        response = get_date_info(days_offset)
+                    elif text in COMMANDS:
+                        cmd = COMMANDS[text]
+                        if callable(cmd):
+                            response = cmd()
                         else:
-                            response = flexible_match(text, COMMANDS)
+                            response = cmd
+                    else:
+                        response = flexible_match(text, COMMANDS)
                 
                 if not response:
                     response = random.choice(DEFAULT_RESPONSES)
@@ -934,7 +804,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_text(response)
                 
             except WebSocketDisconnect:
-                del conversation_states[client_id]  # Clean up state
+                del conversation_states[client_id]
                 logger.info("Client disconnected")
                 break
             except Exception as e:
@@ -948,14 +818,11 @@ async def websocket_endpoint(websocket: WebSocket):
 async def startup_event():
     logger.info("SayMe API is starting up")
 
-# Ažuriraj putanje za statičke datoteke
 current_dir = os.path.dirname(os.path.realpath(__file__))
 frontend_dir = os.path.join(os.path.dirname(current_dir), 'frontend')
 
-# Serviranje frontenda
 app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
-# API health check endpoint
 @app.get("/api/health")
 async def health_check():
     return {"status": "online", "message": "SayMe API is running"}
