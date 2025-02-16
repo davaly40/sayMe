@@ -469,107 +469,99 @@ def search_web(query: str) -> str:
         query_type = None
         subject = ""
         
-        # Prepoznaj tip upita i izvuci subjekt
+        # Extract subject from query
         if clean_query.startswith(('tko je', 'ko je')):
             query_type = 'person'
             subject = re.sub(r'^(tko|ko)\s+je\s+', '', clean_query).strip()
         elif clean_query.startswith(('što je', 'šta je')):
             query_type = 'definition'
             subject = re.sub(r'^(što|šta)\s+je\s+', '', clean_query).strip()
-            # Ukloni upitnik ako postoji
-            subject = subject.rstrip('?')
-
+        
+        subject = subject.rstrip('?').strip()
         if not subject:
-            return "Nisam razumio pitanje. Možete li preformulirati?"
+            return "Molim vas dopunite pitanje."
 
-        # Formatiraj URL za pretraživanje
-        wiki_query = subject.replace(' ', '_').title()
-        possible_urls = [
-            f"https://hr.wikipedia.org/wiki/{wiki_query}",
-            f"https://www.enciklopedija.hr/Natuknica.aspx?q={subject}",
-            f"https://hr.wikipedia.org/wiki/Posebno:Traži/{wiki_query}"
-        ]
+        # Try Croatian Wikipedia first
+        result = try_wikipedia_search(subject, 'hr', headers)
+        
+        # If no Croatian result, try English translation
+        if not result:
+            # Check common translations first
+            eng_subject = COMMON_TRANSLATIONS.get(subject)
+            if eng_subject:
+                result = try_wikipedia_search(eng_subject, 'en', headers)
+                if result:
+                    # Add Croatian context to English result
+                    if not result.lower().startswith(subject.lower()):
+                        result = f"{subject} je " + result
+            
+        if result:
+            return result[:500] + "..." if len(result) > 500 else result
+            
+        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
 
-        for url in possible_urls:
-            try:
-                response = requests.get(url, headers=headers, timeout=5)
-                if response.status_code == 200:
+    except Exception as e:
+        logger.error(f"Search error: {str(e)}")
+        return "Došlo je do greške prilikom pretraživanja. Molim pokušajte ponovno."
+                            soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Find first meaningful paragraph
+                content = soup.find('div', {'class': 'mw-parser-output'})
+                if content:
+                    # Skip tables and infoboxes
+                    paragraphs = content.find_all('p', recursive=False)
+                    for p in paragraphs:
+                        text = p.text.strip()
+                        # Check if paragraph is meaningful
+                        if len(text) > 50 and not p.find('span', class_='coordinates'):
+                            # Clean up the text
+                            text = re.sub(r'\[\d+\]', '', text)  # Remove references
+                            text = re.sub(r'\([^)]*\)', '', text)  # Remove parentheses
+                            text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+                            
+                            # Format response
+                            if not text.lower().startswith(subject.lower()):
+                                prefix = f"{subject} je"
+                                if query_type == 'person':
+                                    # Capitalize person's name
+                                    prefix = f"{subject.title()} je"
+                                text = f"{prefix} {text}"
+                            
+                            return text[:500] + "..." if len(text) > 500 else text
+            
+            # If direct lookup fails, try search
+            search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno%3ATraži&profile=advanced&fulltext=1&ns0=1"
+            response = requests.get(search_url, headers=headers)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                result = soup.find('div', class_='mw-search-result-heading')
+                
+                if result and result.find('a'):
+                    article_url = "https://hr.wikipedia.org" + result.find('a')['href']
+                    response = requests.get(article_url, headers=headers)
                     soup = BeautifulSoup(response.text, 'html.parser')
                     
-                    # Za Wikipediju
-                    if 'wikipedia.org' in url:
-                        content = soup.find('div', class_='mw-parser-output')
-                        if content:
-                            # Preskočimo infookvir i navigaciju
-                            paragraphs = content.find_all('p', recursive=False)
-                            for p in paragraphs:
-                                if len(p.text.strip()) > 100:
-                                    text = p.text.strip()
-                                    # Očisti tekst
-                                    text = re.sub(r'\[\d+\]', '', text)  # Ukloni reference
-                                    text = re.sub(r'\([^)]*\)', '', text)  # Ukloni zagrade
-                                    text = re.sub(r'\s+', ' ', text)  # Normaliziraj razmake
-                                    
-                                    # Formatiraj odgovor prema tipu upita
-                                    if query_type == 'person':
-                                        if not text.lower().startswith(subject.lower()):
-                                            text = f"{subject.title()} je " + text
-                                    elif query_type == 'definition':
-                                        if not text.lower().startswith(subject.lower()):
-                                            text = f"{subject} je " + text
-                                            
-                                    return text[:500] + "..." if len(text) > 500 else text
-                    
-                    # Za Hrvatsku enciklopediju
-                    elif 'enciklopedija.hr' in url:
-                        content = soup.find('div', class_='uvod')
-                        if content and len(content.text.strip()) > 50:
-                            text = content.text.strip()
+                    for p in soup.find_all('p'):
+                        text = p.text.strip()
+                        if len(text) > 50 and not p.find('span', class_='coordinates'):
+                            text = re.sub(r'\[\d+\]', '', text)
+                            text = re.sub(r'\([^)]*\)', '', text)
                             text = re.sub(r'\s+', ' ', text)
                             
-                            # Formatiraj odgovor
-                            if query_type == 'person':
-                                if not text.lower().startswith(subject.lower()):
-                                    text = f"{subject.title()} je " + text
-                            elif query_type == 'definition':
-                                if not text.lower().startswith(subject.lower()):
-                                    text = f"{subject} je " + text
-                                    
+                            if not text.lower().startswith(subject.lower()):
+                                prefix = f"{subject} je"
+                                if query_type == 'person':
+                                    prefix = f"{subject.title()} je"
+                                text = f"{prefix} {text}"
+                            
                             return text[:500] + "..." if len(text) > 500 else text
-
-            except Exception as e:
-                logger.error(f"Error fetching {url}: {str(e)}")
-                continue
-
-        # Ako ne nađemo na Wikipediji ili enciklopediji, probaj Google
-        google_url = f"https://www.google.com/search?q={subject}&hl=hr&lr=lang_hr"
-        response = requests.get(google_url, headers=headers, timeout=5)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            selectors = [
-                'div[data-attrid="description"]',
-                'div.kno-rdesc span',
-                'span.hgKElc',
-                'div[data-md="50"]'
-            ]
             
-            for selector in selectors:
-                elements = soup.select(selector)
-                for element in elements:
-                    text = element.get_text().strip()
-                    if len(text) > 50 and not any(x in text.lower() for x in ['kolačić', 'cookie', 'prijavi']):
-                        # Formatiraj odgovor
-                        if query_type == 'person':
-                            if not text.lower().startswith(subject.lower()):
-                                text = f"{subject.title()} je " + text
-                        elif query_type == 'definition':
-                            if not text.lower().startswith(subject.lower()):
-                                text = f"{subject} je " + text
-                                
-                        return text[:500] + "..." if len(text) > 500 else text
+            return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
 
-        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
+        except requests.RequestException as e:
+            logger.error(f"Request error: {str(e)}")
+            return "Došlo je do greške pri pretraživanju. Molim pokušajte ponovno."
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
@@ -827,7 +819,7 @@ def get_day_offset(text: str) -> int:
 async def websocket_endpoint(websocket: WebSocket):
     try:
         await websocket.accept()
-        client_id = str(id(websocket))  # Unique ID for each connection
+        client_id = str(id(websocket))
         conversation_states[client_id] = ConversationState()
         logger.info("WebSocket connection established")
         
@@ -840,8 +832,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 response = None
                 state = conversation_states[client_id]
 
-                # Prvo provjeri je li pitanje o točnom vremenu
-                if any(phrase in text for phrase in [
+                # Prvo provjeri je li to pretraživački upit
+                if text.startswith(("što je", "šta je", "tko je", "ko je")):
+                    response = search_web(text)
+                # Ostali slučajevi...
+                elif any(phrase in text for phrase in [
                     "koliko je sati",
                     "koje je vrijeme na satu",
                     "kolko je sati",

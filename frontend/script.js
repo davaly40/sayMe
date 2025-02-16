@@ -450,32 +450,93 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function handleCameraRequest(isFrontCamera = false, withTimer = false) {
     try {
-        // For Android
-        if (/Android/i.test(navigator.userAgent)) {
-            window.location.href = 'intent://media/camera/#Intent;scheme=android-app;package=com.android.camera;end';
-            return;
-        }
-        
-        // For iOS
-        if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            window.location.href = 'camera://';
-            
-            // Fallback if camera:// doesn't work
-            setTimeout(() => {
-                window.location.href = 'photos-redirect://';
-            }, 1000);
-            return;
-        }
-        
-        // Fallback for web browsers
         const constraints = {
             video: {
                 facingMode: isFrontCamera ? "user" : "environment"
             }
         };
         
+        // Prvo zatvori postojeći stream ako postoji
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Stvori novi video element
+        let video = document.createElement('video');
+        video.style.position = 'fixed';
+        video.style.top = '0';
+        video.style.left = '0';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        video.style.zIndex = '1000';
+        document.body.appendChild(video);
+
+        // Dobavi stream kamere
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        // ...rest of existing camera code...
+        cameraStream = stream;
+        video.srcObject = stream;
+        await video.play();
+
+        if (withTimer) {
+            // Dodaj timer overlay
+            let timerDiv = document.createElement('div');
+            timerDiv.style.position = 'fixed';
+            timerDiv.style.top = '50%';
+            timerDiv.style.left = '50%';
+            timerDiv.style.transform = 'translate(-50%, -50%)';
+            timerDiv.style.fontSize = '72px';
+            timerDiv.style.color = 'white';
+            timerDiv.style.zIndex = '1001';
+            document.body.appendChild(timerDiv);
+
+            // Timer countdown
+            for (let i = 5; i > 0; i--) {
+                timerDiv.textContent = i;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Slikaj
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            // Spremi sliku
+            const photo = canvas.toDataURL('image/jpeg');
+            const link = document.createElement('a');
+            link.download = 'selfie.jpg';
+            link.href = photo;
+            link.click();
+
+            // Čišćenje
+            timerDiv.remove();
+        }
+
+        // Dodaj gumb za zatvaranje
+        const closeButton = document.createElement('button');
+        closeButton.textContent = '✕';
+        closeButton.style.position = 'fixed';
+        closeButton.style.top = '20px';
+        closeButton.style.right = '20px';
+        closeButton.style.zIndex = '1001';
+        closeButton.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        closeButton.style.color = 'white';
+        closeButton.style.border = 'none';
+        closeButton.style.borderRadius = '50%';
+        closeButton.style.width = '40px';
+        closeButton.style.height = '40px';
+        closeButton.style.cursor = 'pointer';
+        
+        closeButton.onclick = () => {
+            video.remove();
+            closeButton.remove();
+            stream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        };
+        
+        document.body.appendChild(closeButton);
+
     } catch (error) {
         console.error('Camera error:', error);
         alert('Greška pri pristupu kameri. Molimo dozvolite pristup kameri.');
@@ -487,7 +548,7 @@ async function handleAlarmRequest(text) {
         // Izvuci vrijeme iz teksta
         const timeMatch = text.match(/(\d{1,2})(?::\d{2})?\s*(ujutro|navečer|navecer|popodne|predvečer|predvecer|noću|nocu|h)?/);
         if (!timeMatch) {
-            return "Niste naveli vrijeme. Kada želite da vas probudim?";
+            throw new Error('Nije pronađeno vrijeme u zahtjevu');
         }
 
         let hours = parseInt(timeMatch[1]);
@@ -504,34 +565,70 @@ async function handleAlarmRequest(text) {
             }
         }
 
-        // Za Android uređaje
-        if (/Android/i.test(navigator.userAgent)) {
-            const intent = `intent:#Intent;action=android.intent.action.SET_ALARM;` +
-                          `package=com.android.deskclock;` +
-                          `i.android.intent.extra.alarm.HOUR=${hours};` +
-                          `i.android.intent.extra.alarm.MINUTES=0;` +
-                          `b.android.intent.extra.alarm.SKIP_UI=false;end`;
-            window.location.href = intent;
-        }
-        // Za iOS uređaje
-        else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-            window.location.href = `clockapp://alarm/add?hour=${hours}&minutes=0`;
+        // Provjeri podržava li uređaj alarm API
+        if ('wakeLock' in navigator || 'setAlarm' in navigator) {
+            // Za moderne uređaje
+            const timestamp = new Date();
+            timestamp.setHours(hours, 0, 0, 0);
             
-            // Fallback ako clockapp:// ne radi
-            setTimeout(() => {
-                window.location.href = `shortcuts://run-shortcut?name=SetAlarm&input=${hours}:00`;
-            }, 1000);
+            if (timestamp < new Date()) {
+                timestamp.setDate(timestamp.getDate() + 1);
+            }
+
+            // Pokušaj postaviti alarm
+            if ('setAlarm' in navigator) {
+                await navigator.setAlarm(timestamp.getTime());
+            } else {
+                // Fallback na notifications
+                const notification = await requestNotificationPermission();
+                if (notification) {
+                    scheduleNotification(timestamp);
+                }
+            }
+            
+            return `Alarm postavljen za ${hours}:00h`;
+        } else {
+            // Fallback na sistemski kalendar
+            const calendarUrl = createCalendarEvent(hours);
+            window.open(calendarUrl, '_blank');
+            return `Otvoreno je sučelje za postavljanje alarma za ${hours}:00h`;
         }
-        
-        const days = ['nedjelju', 'ponedjeljak', 'utorak', 'srijedu', 'četvrtak', 'petak', 'subotu'];
-        const today = new Date().getDay();
-        const tomorrow = days[(today + 1) % 7];
-        
-        return `Ok, probudit ću te ${tomorrow} u ${hours} sati. Alarm je aktiviran.`;
     } catch (error) {
         console.error('Alarm error:', error);
-        return 'Došlo je do greške pri postavljanju alarma. Molimo pokušajte ponovno.';
+        return 'Nisam uspio postaviti alarm. Pokušajte ručno postaviti alarm na vašem uređaju.';
     }
+}
+
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        return false;
+    }
+    
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+}
+
+function scheduleNotification(timestamp) {
+    const now = new Date().getTime();
+    const delay = timestamp.getTime() - now;
+    
+    setTimeout(() => {
+        new Notification('Alarm', {
+            body: 'Vrijeme je za buđenje!',
+            icon: '/assets/logo.png'
+        });
+    }, delay);
+}
+
+function createCalendarEvent(hours) {
+    const date = new Date();
+    date.setHours(hours, 0, 0, 0);
+    if (date < new Date()) {
+        date.setDate(date.getDate() + 1);
+    }
+    
+    const dateString = date.toISOString().replace(/[-:]/g, '').split('.')[0];
+    return `data:text/calendar;charset=utf8,BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${dateString}\nDURATION:PT10M\nSUMMARY:Alarm\nEND:VEVENT\nEND:VCALENDAR`;
 }
 
 // Modificiraj postojeći handleCommand da uključi nove komande
