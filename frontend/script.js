@@ -8,18 +8,21 @@ let isListening = false;
 const STOP_COMMANDS = ['stop', 'stani', 'dosta', 'nemoj više', 'prekini'];
 
 function updateState(state) {
-    updateVisualization(state);
-    audioCircle.classList.remove('listening', 'speaking', 'thinking');
-    const button = document.getElementById('startButton');
+    const circle = document.querySelector('.audio-circle');
+    if (!circle) return;
+
+    // Reset states
+    circle.classList.remove('listening', 'speaking', 'thinking');
     
-    if (state === 'listening') {
-        button.classList.add('active');
-    } else {
-        button.classList.remove('active');
+    // If we're speaking, only show speaking state, regardless of listening
+    if (isSpeaking) {
+        circle.classList.add('speaking');
+        return;
     }
-    
+
+    // Otherwise show the current state
     if (state) {
-        audioCircle.classList.add(state);
+        circle.classList.add(state);
     }
 }
 
@@ -234,28 +237,31 @@ async function speak(text) {
     if (typeof text !== 'string') return;
     
     stopCurrentSpeech();
+    isSpeaking = true;
+    updateState('speaking');
     
     return new Promise((resolve) => {
         const utterance = new SpeechSynthesisUtterance(text);
         currentUtterance = utterance;
         utterance.lang = 'hr-HR';
         
-        // Start listening while speaking
+        // Start background listening while speaking
         startBackgroundListening();
         
         utterance.onend = () => {
+            isSpeaking = false;
             currentUtterance = null;
-            updateState(null);
+            updateState('listening'); // Show listening state after speech ends
             resolve();
         };
         
         utterance.onerror = () => {
+            isSpeaking = false;
             currentUtterance = null;
-            updateState(null);
+            updateState('listening'); // Show listening state after speech error
             resolve();
         };
         
-        updateState('speaking');
         speechSynthesis.speak(utterance);
     });
 }
@@ -264,7 +270,6 @@ async function speak(text) {
 function startBackgroundListening() {
     if (!recognition || isListening) return;
     
-    // Configure recognition for background listening
     recognition.continuous = true;
     recognition.interimResults = true;
     
@@ -277,10 +282,7 @@ function startBackgroundListening() {
             
             // Check for stop commands
             if (STOP_COMMANDS.some(cmd => transcript.includes(cmd))) {
-                stopCurrentSpeech();
-                recognition.stop();
-                isListening = false;
-                updateState(null);
+                stopSpeaking();
                 return;
             }
         }
@@ -298,7 +300,7 @@ function stopCurrentSpeech() {
         speechSynthesis.cancel();
         currentUtterance = null;
     }
-    updateState(null);
+    isSpeaking = false;
 }
 
 // Add this helper function to create audio stream from speech synthesis
@@ -644,5 +646,44 @@ function stopSpeaking() {
     if (currentUtterance) {
         currentUtterance = null;
     }
-    updateState(null);
+    
+    isSpeaking = false;
+    updateState('listening'); // Now will show listening state after speech stops
+    
+    // Reset and start new recognition session
+    setTimeout(() => {
+        if (recognition) {
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Error restarting recognition:', e);
+            }
+        }
+    }, 100);
 }
+
+// Modify startBackgroundListening to properly handle state
+function startBackgroundListening() {
+    if (!recognition || isListening) return;
+    
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.start();
+    isListening = true;
+    
+    recognition.onresult = function(event) {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript.toLowerCase();
+            
+            if (STOP_COMMANDS.some(cmd => transcript.includes(cmd))) {
+                stopSpeaking();
+                return;
+            }
+        }
+    };
+}
+
+// ...existing code...
