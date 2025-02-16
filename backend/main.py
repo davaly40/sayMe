@@ -6,7 +6,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 import webbrowser
-from typing import Dict
+from typing import Dict, Union, List
 import logging
 import re
 import random
@@ -54,8 +54,8 @@ DEFAULT_RESPONSES = [
     "Nažalost ne razumijem. Možete li biti specifičniji?"
 ]
 
-COMMANDS: Dict[str, str] = {
-    "kako se zoveš": "Noa!",
+COMMANDS: Dict[str, Union[str, List[str]]] = {
+    "kako se zoveš": ["Noa!", "Ja sam Noa!", "Moje ime je Noa.", "Ime mi je Noa!"],
     "ko si ti": "Moje ime je Noa.",
     "tko si ti": "Ja sam Noa!",
     "a tko si ti": "Ja sam Noa!",
@@ -235,7 +235,8 @@ COMMANDS: Dict[str, str] = {
     "hvala na pomoći": "Nema na čemu! Ako trebate još nešto, slobodno pitajte.",
     "hvala na svemu": "Nema na čemu! Ako trebate još nešto, slobodno pitajte.",
 
-
+    
+   
     "pozdrav": "Pozdrav! Kako vam mogu pomoći?",
     "bok": "Bok! Kako vam mogu pomoći?",
     "ej": "Ej! Kako vam mogu pomoći?",
@@ -418,7 +419,7 @@ class ConversationState:
 
 conversation_states: Dict[str, ConversationState] = {}
 
-def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
+def flexible_match(user_input: str, commands: Dict[str, Union[str, List[str]]]) -> str:
     cleaned_input = re.sub(r'[^\w\s]', '', user_input.lower()).strip()
     cleaned_input = ' '.join(cleaned_input.split())
     
@@ -434,11 +435,17 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
         return get_time()
         
     if cleaned_input in COMMANDS:
-        return COMMANDS[cleaned_input]
+        response = COMMANDS[cleaned_input]
+        if isinstance(response, list):
+            return random.choice(response)
+        return response
     
     for cmd in COMMANDS:
         if cleaned_input in cmd or cmd in cleaned_input:
-            return COMMANDS[cmd]
+            response = COMMANDS[cmd]
+            if isinstance(response, list):
+                return random.choice(response)
+            return response
     
     return random.choice(DEFAULT_RESPONSES)
 
