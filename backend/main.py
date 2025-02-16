@@ -711,6 +711,20 @@ def get_day_offset(text: str) -> int:
 INTERRUPT_COMMANDS = ['stani', 'prestani', 'dosta', 'prekini', 'stop', 'zaustaviti', 'šuti']
 active_responses = {}  # Track active responses for each client
 
+# Update INTERRUPT_COMMANDS near the top with other constants
+INTERRUPT_COMMANDS = [
+    'stani', 'prestani', 'dosta', 'prekini', 'stop', 
+    'zaustaviti', 'šuti', 'šutim', 'prekini', 'zaustavi'
+]
+
+INTERRUPT_RESPONSES = [
+    "U redu, prestajem.",
+    "Ok, šutim.",
+    "Razumijem, prekidam.",
+    "Dobro, stajem.",
+    "U redu, neću više."
+]
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
@@ -727,12 +741,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 text = text.lower().strip()
                 
-                # Check for interrupt command
+                # Prioritetna provjera interrupt komandi
                 if any(cmd in text for cmd in INTERRUPT_COMMANDS):
-                    if active_responses.get(client_id):
-                        active_responses[client_id] = False
-                        await websocket.send_text("U redu, prestajem.")
-                        continue
+                    active_responses[client_id] = False
+                    response = random.choice(INTERRUPT_RESPONSES)
+                    await websocket.send_text(response)
+                    continue
 
                 # Set active response flag
                 active_responses[client_id] = True

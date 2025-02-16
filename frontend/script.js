@@ -101,13 +101,13 @@ async function initializeSpeechRecognition() {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
             
-            // Check if this is an interrupt command
-            if (currentlySpeaking && INTERRUPT_COMMANDS.some(cmd => command.includes(cmd))) {
-                if (window.utterance) {
+            // Prioritetna provjera interrupt komandi
+            if (INTERRUPT_COMMANDS.some(cmd => command.includes(cmd))) {
+                if (currentlySpeaking) {
                     speechSynthesis.cancel();
                     currentlySpeaking = false;
                     updateState(null);
-                    await speak("U redu, prestajem.");
+                    await speak(getRandomStopResponse());
                     return;
                 }
             }
@@ -235,17 +235,23 @@ async function speak(text) {
     utterance.lang = 'hr-HR';
     
     try {
-        if (recognition) {
-            recognition.stop();
-        }
-
+        currentlySpeaking = true;
         updateState('speaking');
         updateVisualization('speaking');
-        currentlySpeaking = true;
+
+        // Enable continuous recognition during speech
+        if (recognition) {
+            recognition.continuous = true;
+            recognition.start();
+        }
 
         await new Promise((resolve) => {
             utterance.onend = () => {
                 currentlySpeaking = false;
+                if (recognition) {
+                    recognition.continuous = false;
+                    recognition.stop();
+                }
                 setTimeout(() => {
                     updateState(null);
                     updateVisualization(null);
@@ -253,13 +259,26 @@ async function speak(text) {
                 }, 500);
             };
             
-            window.utterance = utterance; // Store reference for interruption
+            utterance.onpause = () => {
+                if (currentlySpeaking) {
+                    currentlySpeaking = false;
+                    updateState(null);
+                    updateVisualization(null);
+                    resolve();
+                }
+            };
+            
+            window.utterance = utterance;
             speechSynthesis.speak(utterance);
         });
 
     } catch (error) {
         console.error('Speak error:', error);
         currentlySpeaking = false;
+        if (recognition) {
+            recognition.continuous = false;
+            recognition.stop();
+        }
         updateState(null);
         updateVisualization(null);
     }
@@ -459,6 +478,18 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeModals();
     // ...rest of your DOMContentLoaded code...
 });
+
+// Add helper function for random stop responses
+function getRandomStopResponse() {
+    const responses = [
+        "U redu, prestajem.",
+        "Ok, šutim.",
+        "Razumijem, prekidam.",
+        "Dobro, stajem.",
+        "U redu, neću više."
+    ];
+    return responses[Math.floor(Math.random() * responses.length)];
+}
 
 // ...existing code...
 
