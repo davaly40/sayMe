@@ -476,83 +476,85 @@ def search_web(query: str) -> str:
         elif clean_query.startswith(('što je', 'šta je')):
             query_type = 'definition'
             subject = re.sub(r'^(što|šta)\s+je\s+', '', clean_query).strip()
-        
+        else:
+            return "Nisam razumio pitanje. Možete li preformulirati?"
+
         # Remove question mark if exists
         subject = subject.rstrip('?')
         if not subject:
-            return "Nisam razumio pitanje. Možete li preformulirati?"
+            return "Molim vas dopunite pitanje."
 
         # Try direct Wikipedia article first
         wiki_query = subject.replace(' ', '_').title()
-        wiki_url = f"https://hr.wikipedia.org/wiki/{wiki_query}"
+        url = f"https://hr.wikipedia.org/wiki/{wiki_query}"
         
-        response = requests.get(wiki_url, headers=headers, timeout=5)
+        try:
+            response = requests.get(url, headers=headers, timeout=5)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Get the first paragraph that isn't empty and isn't a table
+            paragraphs = soup.find_all('p')
+            text = ""
+            
+            for p in paragraphs:
+                if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
+                    text = p.text.strip()
+                    break
+                    
+            if text:
+                # Clean up the text
+                text = re.sub(r'\[\d+\]', '', text)  # Remove references
+                text = re.sub(r'\([^)]*\)', '', text) # Remove parentheses
+                text = re.sub(r'\s+', ' ', text)      # Normalize spaces
+                
+                # Format response based on query type
+                if query_type == "person" and not text.lower().startswith(subject.lower()):
+                    text = f"{subject.title()} je " + text
+                elif query_type == "definition" and not text.lower().startswith(subject.lower()):
+                    text = f"{subject} je " + text
+                
+                return text[:500] + "..." if len(text) > 500 else text
+            
+        except requests.RequestException:
+            pass
+
+        # If direct Wikipedia lookup fails, try Wikipedia search
+        search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno:Traži"
+        response = requests.get(search_url, headers=headers)
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
+            search_results = soup.find('div', class_='mw-search-result-heading')
             
-            # Check if we got a disambiguation page
-            if soup.find('table', class_='razdvojba'):
-                # If disambiguation page, try search instead
-                search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno:Traži"
-                response = requests.get(search_url, headers=headers, timeout=5)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    # Get first search result
-                    first_result = soup.find('div', class_='mw-search-result-heading')
-                    if first_result and first_result.find('a'):
-                        article_url = "https://hr.wikipedia.org" + first_result.find('a')['href']
-                        response = requests.get(article_url, headers=headers, timeout=5)
-                        soup = BeautifulSoup(response.text, 'html.parser')
-
-            # Process Wikipedia article
-            content = soup.find('div', class_='mw-parser-output')
-            if content:
-                # Skip technical/administrative notices at the top
-                def is_valid_paragraph(p):
-                    if not p.text.strip():
-                        return False
-                    if p.find('span', class_='coordinates'):
-                        return False
-                    if p.find(class_='reference'):
-                        return False
-                    if len(p.text.strip()) < 50:
-                        return False
-                    return True
-
-                # Find first valid paragraph
-                paragraphs = content.find_all('p', recursive=False)
+            if search_results and search_results.find('a'):
+                article_url = "https://hr.wikipedia.org" + search_results.find('a')['href']
+                response = requests.get(article_url, headers=headers)
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Get first valid paragraph
+                paragraphs = soup.find_all('p')
                 text = ""
+                
                 for p in paragraphs:
-                    if is_valid_paragraph(p):
+                    if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
                         text = p.text.strip()
                         break
-
+                
                 if text:
-                    # Clean up the text
-                    text = re.sub(r'\[\d+\]', '', text)  # Remove references
-                    text = re.sub(r'\([^)]*\)', '', text)  # Remove parentheses
-                    text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+                    # Clean up text
+                    text = re.sub(r'\[\d+\]', '', text)
+                    text = re.sub(r'\([^)]*\)', '', text)
+                    text = re.sub(r'\s+', ' ', text)
                     
                     # Format response based on query type
-                    if query_type == 'person':
-                        if not text.lower().startswith(subject.lower()):
-                            text = f"{subject.title()} je " + text
-                    elif query_type == 'definition':
-                        if not text.lower().startswith(subject.lower()):
-                            text = f"{subject} je " + text
+                    if query_type == "person" and not text.lower().startswith(subject.lower()):
+                        text = f"{subject.title()} je " + text
+                    elif query_type == "definition" and not text.lower().startswith(subject.lower()):
+                        text = f"{subject} je " + text
                     
-                    # Limit response length but try to end at a sentence
-                    if len(text) > 500:
-                        sentences = text[:500].split('.')
-                        text = '.'.join(sentences[:-1]) + '.'
-                    
-                    return text
+                    return text[:500] + "..." if len(text) > 500 else text
 
-        # If Wikipedia fails, try backup sources...
-        # ...existing code for backup sources...
-
-        return f"Nažalost, ne mogu pronaći pouzdane informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
+        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
@@ -810,7 +812,7 @@ def get_day_offset(text: str) -> int:
 async def websocket_endpoint(websocket: WebSocket):
     try:
         await websocket.accept()
-        client_id = str(id(websocket))  # Unique ID for each connection
+        client_id = str(id(websocket))
         conversation_states[client_id] = ConversationState()
         logger.info("WebSocket connection established")
         
@@ -823,8 +825,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 response = None
                 state = conversation_states[client_id]
 
-                # Prvo provjeri je li pitanje o točnom vremenu
-                if any(phrase in text for phrase in [
+                # Prvo provjeri je li to pretraživački upit
+                if text.startswith(("što je", "šta je", "tko je", "ko je")):
+                    response = search_web(text)
+                # Ostali slučajevi...
+                elif any(phrase in text for phrase in [
                     "koliko je sati",
                     "koje je vrijeme na satu",
                     "kolko je sati",
