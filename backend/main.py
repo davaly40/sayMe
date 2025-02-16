@@ -797,6 +797,36 @@ def get_day_offset(text: str) -> int:
 
     return 0
 
+def generate_maps_url(destination: str, mode: str = 'navigate') -> str:
+    # Očisti i formatiraj destinaciju
+    destination = destination.strip().replace(' ', '+')
+    
+    # Desktop URL
+    web_url = f"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=driving"
+    
+    # Mobile URL (za otvaranje Google Maps aplikacije)
+    mobile_url = f"comgooglemaps://?daddr={destination}&directionsmode=driving"
+    
+    return json.dumps({
+        "type": "openUrl",
+        "url": web_url,
+        "mobileUrl": mobile_url,
+        "message": f"Otvaram navigaciju do lokacije: {destination.replace('+', ' ')}"
+    })
+
+# Dodajte u COMMANDS dictionary
+NAVIGATION_TRIGGERS = {
+    "odvedi me": "navigate",
+    "kako doći do": "directions",
+    "kako doci do": "directions",
+    "koji je put do": "directions",
+    "koji je najkraći put": "directions",
+    "koji je najkraci put": "directions",
+    "put do": "directions",
+    "navigiraj do": "navigate",
+    "vodi me do": "navigate",
+}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
@@ -884,7 +914,20 @@ async def websocket_endpoint(websocket: WebSocket):
                         else:
                             response = cmd
                     else:
-                        response = flexible_match(text, COMMANDS)
+                        is_navigation = False
+                        destination = ""
+                        
+                        for trigger, mode in NAVIGATION_TRIGGERS.items():
+                            if trigger in text:
+                                is_navigation = True
+                                # Izvuci destinaciju iz teksta
+                                destination = text.split(trigger, 1)[1].strip()
+                                if destination:
+                                    response = generate_maps_url(destination)
+                                    break
+                        
+                        if not is_navigation:
+                            response = flexible_match(text, COMMANDS)
                 
                 if not response:
                     response = random.choice(DEFAULT_RESPONSES)

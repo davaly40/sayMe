@@ -204,15 +204,15 @@ function handleUrlOpen(data) {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
     if (isMobile && data.mobileUrl) {
-        // Pokušaj otvoriti mobilnu aplikaciju
+        // Prvo pokušaj otvoriti nativnu aplikaciju
         window.location.href = data.mobileUrl;
         
-        // Ako mobilna aplikacija nije instalirana, otvori web verziju nakon 1 sekunde
+        // Ako nativna aplikacija nije instalirana, otvori web verziju nakon 1 sekunde
         setTimeout(() => {
-            window.open(data.url, '_blank');
+            window.location.href = data.url;
         }, 1000);
     } else {
-        // Na desktopu ili ako nema mobilne aplikacije, otvori u novom tabu
+        // Na desktopu otvori Google Maps u novom tabu
         window.open(data.url, '_blank');
     }
 }
