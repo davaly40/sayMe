@@ -294,21 +294,6 @@ COMMANDS.update({
     "koji dan je sutra": lambda: get_date_info(1),
 })
 
-COMMANDS.update({
-    "upali kameru": "Otvaram kameru...",
-    "otvori kameru": "Otvaram kameru...",
-    "uključi kameru": "Otvaram kameru...",
-    "pokreni kameru": "Otvaram kameru...",
-    "fotoaparat": "Otvaram kameru...",
-    "slikaj": "Otvaram kameru...",
-    
-    "probudi me": "U koje vrijeme želite alarm?",
-    "navij alarm": "U koje vrijeme želite alarm?",
-    "uključi alarm": "U koje vrijeme želite alarm?",
-    "postavi alarm": "U koje vrijeme želite alarm?",
-    "namjesti budilicu": "U koje vrijeme želite alarm?",
-})
-
 WEBSITES = {
     "youtube": "https://youtube.com",
     "facebook": "https://facebook.com",
@@ -764,14 +749,13 @@ def handle_alarm_request(text: str) -> str:
     if time_tuple:
         hours, minutes = time_tuple
         if 0 <= hours <= 23 and 0 <= minutes <= 59:
-            tomorrow = (datetime.now() + timedelta(days=1)).strftime('%A')
             return json.dumps({
                 "type": "setAlarm",
                 "hours": hours,
                 "minutes": minutes,
-                "message": f"Ok, probudit ću te {tomorrow} u {hours:02d}:{minutes:02d}. Alarm je aktiviran."
+                "message": f"Postavljam alarm za {hours:02d}:{minutes:02d}"
             })
-    return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'u X sati' ili 'X:Y'"
+    return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'"
 
 def get_date_info(days_offset: int = 0) -> str:
     try:
