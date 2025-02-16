@@ -436,56 +436,47 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
 def search_web(query: str) -> str:
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124'
         }
-
-        # Prvo pokušaj hrvatski Wikipedia search
+        
+        # Prvo probaj Wikipedia
         wiki_url = f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}"
-        wiki_response = requests.get(wiki_url, headers=headers)
-        wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
+        response = requests.get(wiki_url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Traži prvi relevantan paragraf na Wikipediji
-        wiki_paragraphs = wiki_soup.find_all('p')
-        for p in wiki_paragraphs:
-            text = p.get_text().strip()
-            if text and not text.startswith('(') and len(text) > 50:
-                return text[:500] + "..."
-
-        # Ako Wikipedia ne uspije, koristi Google pretragu
-        google_url = f"https://www.google.com/search?q={query}&hl=hr&gl=hr"
-        google_response = requests.get(google_url, headers=headers)
-        google_soup = BeautifulSoup(google_response.text, 'html.parser')
-        
-        # Pokušaj naći featured snippet ili druge relevantne dijelove
-        possible_elements = [
-            google_soup.find('div', {'class': ['kp-header', 'BNeawe', 'iBp4i', 'vk_c']}),
-            google_soup.find('div', {'class': 'hgKElc'}),  # Featured snippet
-            google_soup.find('div', {'class': 'IZ6rdc'}),  # Knowledge panel
-            google_soup.find('div', {'class': 'Z0LcW'}),   # Direct answer
-            google_soup.find('div', {'class': 'BNeawe s3v9rd AP7Wnd'})  # Regular result
-        ]
-
-        # Uzmi prvi element koji nije None i ima tekst
-        for element in possible_elements:
-            if element and element.get_text().strip():
-                text = element.get_text().strip()
-                # Očisti tekst od nepotrebnih dijelova
-                text = re.sub(r'\s+', ' ', text)
-                return text[:500] + "..." if len(text) > 500 else text
-
-        # Ako ni to ne uspije, probaj naći bilo koji rezultat pretrage
-        search_results = google_soup.find_all('div', {'class': 'BNeawe s3v9rd AP7Wnd'})
-        if search_results:
-            for result in search_results:
-                text = result.get_text().strip()
-                if len(text) > 50:  # Uzmi samo dovoljno duge rezultate
+        # Traži glavni sadržaj na Wikipediji
+        content = soup.find('div', {'id': 'mw-content-text'})
+        if content:
+            paragraphs = content.find_all('p', recursive=False)
+            for p in paragraphs:
+                text = p.get_text().strip()
+                if len(text) > 50:
                     return text[:500] + "..."
-
-        return "Ispričavam se, ali ne mogu pronaći odgovor na to pitanje. Možete li preformulirati?"
-            
+        
+        # Ako Wikipedia ne uspije, koristi Google
+        google_url = f"https://www.google.com/search?q={query}&hl=hr&lr=lang_hr"
+        response = requests.get(google_url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Traži različite vrste Google rezultata
+        selectors = [
+            'div.BNeawe.s3v9rd.AP7Wnd',
+            'div.kp-header',
+            'div.LGOjhe',
+            'div.IZ6rdc'
+        ]
+        
+        for selector in selectors:
+            results = soup.select(selector)
+            for result in results:
+                text = result.get_text().strip()
+                if len(text) > 50:
+                    return text[:500] + "..."
+        
+        return "Nažalost, ne mogu pronaći informacije o tome."
     except Exception as e:
-        logger.error(f"Error searching web: {str(e)}")
-        return "Došlo je do greške prilikom pretraživanja. Možete li pokušati ponovno?"
+        logger.error(f"Search error: {str(e)}")
+        return "Došlo je do greške prilikom pretraživanja."
 
 def open_website(name: str) -> str:
     name = name.lower().strip()
@@ -668,44 +659,45 @@ def handle_alarm_request(text: str) -> str:
     return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'"
 
 def get_date_info(days_offset: int = 0) -> str:
-    target_date = datetime.now() + timedelta(days=days_offset)
-    
-    # Dobavi imena dana i mjeseca na engleskom
-    weekday_eng = target_date.strftime('%A')
-    month_eng = target_date.strftime('%B')
-    
-    # Pretvori u hrvatske nazive
-    weekday = CROATIAN_DAYS.get(weekday_eng, weekday_eng)
-    month = CROATIAN_MONTHS.get(month_eng, month_eng)
-    
-    # Formatiraj datum
-    date_str = f"{target_date.day}. {month} {target_date.year}."
-    
-    if days_offset == 0:
-        return f"Danas je {weekday}, {date_str}"
-    elif days_offset == 1:
-        return f"Sutra je {weekday}, {date_str}"
-    elif days_offset == 2:
-        return f"Prekosutra je {weekday}, {date_str}"
-    else:
-        return f"U {weekday.lower()}, {date_str}"
+    try:
+        target_date = datetime.now() + timedelta(days=days_offset)
+        
+        # Dobavi imena dana i mjeseca
+        weekday_eng = target_date.strftime('%A')
+        month_eng = target_date.strftime('%B')
+        
+        weekday = CROATIAN_DAYS.get(weekday_eng, weekday_eng).capitalize()
+        month = CROATIAN_MONTHS.get(month_eng, month_eng)
+        
+        date_str = f"{target_date.day}. {month} {target_date.year}."
+        
+        if days_offset == 0:
+            return f"Danas je {weekday}, {date_str}"
+        elif days_offset == 1:
+            return f"Sutra je {weekday}, {date_str}"
+        elif days_offset == 2:
+            return f"Prekosutra je {weekday}, {date_str}"
+        else:
+            return f"U {weekday.lower()}, {date_str}"
+    except Exception as e:
+        logger.error(f"Date info error: {str(e)}")
+        return "Došlo je do greške pri dohvaćanju datuma."
 
 def get_day_offset(text: str) -> int:
-    """Extract number of days offset from text"""
-    text = text.lower()
+    text = text.lower().strip()
     
-    # Provjeri specifične ključne riječi prvo
+    # Specifične riječi za dane
     if "prekosutra" in text:
         return 2
     elif "sutra" in text:
         return 1
     elif "danas" in text:
         return 0
-    
-    # Provjeri imena dana u tjednu - korigirano na standardni hrvatski
+        
+    # Dani u tjednu
     days_mapping = {
-        'ponedjeljak': 0, 
-        'utorak': 1, 
+        'ponedjeljak': 0,
+        'utorak': 1,
         'srijeda': 2, 'srijedu': 2,
         'četvrtak': 3, 'četvrtku': 3,
         'petak': 4, 'petku': 4,
@@ -713,17 +705,22 @@ def get_day_offset(text: str) -> int:
         'nedjelja': 6, 'nedjelju': 6
     }
     
-    # Pronađi spomenuti dan u tekstu
+    current_weekday = datetime.now().weekday()
+    
     for day, day_num in days_mapping.items():
         if day in text:
-            current_weekday = datetime.now().weekday()
             days_until = (day_num - current_weekday) % 7
-            if days_until == 0:  # Ako je spomenuti dan danas
-                # Ako tekst sadrži "sljedeći" ili "idući", dodaj tjedan dana
-                if any(word in text for word in ["sljedeći", "slijedeći", "idući", "iduci"]):
-                    days_until = 7
-            return days_until if days_until > 0 else 7
             
+            # Ako se spominje "sljedeći" ili "idući", dodaj tjedan dana
+            if any(word in text for word in ["sljedeći", "slijedeći", "idući", "iduci"]):
+                if days_until <= 0:
+                    days_until += 7
+            elif days_until == 0:  # Ako je danas taj dan
+                if not any(word in text for word in ["danas", "trenutno", "sad"]):
+                    days_until = 7
+            
+            return days_until
+    
     return 0
 
 @app.websocket("/ws")
