@@ -3,6 +3,9 @@ let socket;
 const audioCircle = document.getElementById('audioCircle');
 let isSpeaking = false; // Add this at the top with other state variables
 let currentUtterance = null; // Track current speech utterance
+let isListening = false;
+
+const STOP_COMMANDS = ['stop', 'stani', 'dosta', 'nemoj više', 'prekini'];
 
 function updateState(state) {
     updateVisualization(state);
@@ -53,6 +56,7 @@ async function initializeSpeechRecognition() {
 
         // Zaustavi prethodno prepoznavanje ako postoji
         recognition.onstart = () => {
+            isListening = true;
             updateState('listening');
             console.log('Speech recognition started');
         };
@@ -87,6 +91,7 @@ async function initializeSpeechRecognition() {
 
         // Posebno rukovanje za Samsung uređaje
         recognition.onend = () => {
+            isListening = false;
             updateState(null);
             if (isSamsung && recognition.isListening) {
                 try {
@@ -100,6 +105,12 @@ async function initializeSpeechRecognition() {
         recognition.onresult = async function(event) {
             const command = event.results[0][0].transcript.toLowerCase();
             console.log('Recognized:', command);
+            
+            // Check if it's a stop command
+            if (STOP_COMMANDS.some(stopCmd => command.includes(stopCmd))) {
+                stopSpeaking();
+                return;
+            }
             
             // Dodaj vizualnu povratnu informaciju
             const button = document.getElementById('startButton');
@@ -220,34 +231,74 @@ function handleUrlOpen(data) {
 }
 
 async function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'hr-HR';
+    if (typeof text !== 'string') return;
     
-    try {
-        if (recognition) {
-            recognition.stop();
-        }
-
+    stopCurrentSpeech();
+    
+    return new Promise((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        currentUtterance = utterance;
+        utterance.lang = 'hr-HR';
+        
+        // Start listening while speaking
+        startBackgroundListening();
+        
+        utterance.onend = () => {
+            currentUtterance = null;
+            updateState(null);
+            resolve();
+        };
+        
+        utterance.onerror = () => {
+            currentUtterance = null;
+            updateState(null);
+            resolve();
+        };
+        
         updateState('speaking');
-        updateVisualization('speaking');
+        speechSynthesis.speak(utterance);
+    });
+}
 
-        await new Promise((resolve) => {
-            utterance.onend = () => {
-                setTimeout(() => {
-                    updateState(null);
-                    updateVisualization(null);
-                    resolve();
-                }, 500);
-            };
+// Add new function for background listening
+function startBackgroundListening() {
+    if (!recognition || isListening) return;
+    
+    // Configure recognition for background listening
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    recognition.start();
+    isListening = true;
+    
+    recognition.onresult = function(event) {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript.toLowerCase();
             
-            speechSynthesis.speak(utterance);
-        });
+            // Check for stop commands
+            if (STOP_COMMANDS.some(cmd => transcript.includes(cmd))) {
+                stopCurrentSpeech();
+                recognition.stop();
+                isListening = false;
+                updateState(null);
+                return;
+            }
+        }
+    };
+    
+    recognition.onend = () => {
+        isListening = false;
+        recognition.continuous = false;
+        recognition.interimResults = false;
+    };
+}
 
-    } catch (error) {
-        console.error('Speak error:', error);
-        updateState(null);
-        updateVisualization(null);
+function stopCurrentSpeech() {
+    if (currentUtterance) {
+        speechSynthesis.cancel();
+        currentUtterance = null;
     }
+    updateState(null);
 }
 
 // Add this helper function to create audio stream from speech synthesis
@@ -585,3 +636,13 @@ micButton.addEventListener('click', () => {
 });
 
 // ...existing code...
+
+function stopSpeaking() {
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+    if (currentUtterance) {
+        currentUtterance = null;
+    }
+    updateState(null);
+}

@@ -286,6 +286,14 @@ COMMANDS.update({
     "koji dan je sutra": lambda: get_date_info(1),
 })
 
+COMMANDS.update({
+    "stop": "U redu, prestajem.",
+    "stani": "U redu, prestajem.",
+    "dosta": "U redu, prestajem.",
+    "nemoj više": "U redu, prestajem.",
+    "prekini": "U redu, prestajem.",
+})
+
 WEBSITES = {
     "youtube": "https://youtube.com",
     "facebook": "https://facebook.com",
