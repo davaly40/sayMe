@@ -460,101 +460,76 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
 
 def search_web(query: str) -> str:
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-
         # Clean and prepare query
         clean_query = query.lower().strip()
-        query_type = None
-        subject = ""
         
-        # Detect query type and extract subject
+        # Za "tko je" pitanja vrati standardni odgovor
         if clean_query.startswith(('tko je', 'ko je')):
-            query_type = 'person'
-            subject = re.sub(r'^(tko|ko)\s+je\s+', '', clean_query).strip()
-        elif clean_query.startswith(('što je', 'šta je')):
-            query_type = 'definition'
+            return "Žao mi je, ne dajem informacije o bilo kakvim javnim ili privatnim osobama."
+            
+        # Za "što je" pitanja pretraži Wikipediju
+        if clean_query.startswith(('što je', 'šta je')):
+            # Izvuci pojam iz upita
             subject = re.sub(r'^(što|šta)\s+je\s+', '', clean_query).strip()
-        else:
-            return "Nisam razumio pitanje. Možete li preformulirati?"
+            subject = subject.rstrip('?').strip()
+            
+            if not subject:
+                return "Molim vas dopunite pitanje."
 
-        # Remove question mark if exists
-        subject = subject.rstrip('?')
-        if not subject:
-            return "Molim vas dopunite pitanje."
-
-        # Try direct Wikipedia article first
-        wiki_query = subject.replace(' ', '_').title()
-        url = f"https://hr.wikipedia.org/wiki/{wiki_query}"
-        
-        try:
-            response = requests.get(url, headers=headers, timeout=5)
-            soup = BeautifulSoup(response.text, 'html.parser')
+            # Pripremi URL za Wikipediju
+            wiki_url = f"https://hr.wikipedia.org/wiki/{subject.replace(' ', '_').title()}"
             
-            # Get the first paragraph that isn't empty and isn't a table
-            paragraphs = soup.find_all('p')
-            text = ""
+            response = requests.get(wiki_url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }, timeout=5)
             
-            for p in paragraphs:
-                if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
-                    text = p.text.strip()
-                    break
-                    
-            if text:
-                # Clean up the text
-                text = re.sub(r'\[\d+\]', '', text)  # Remove references
-                text = re.sub(r'\([^)]*\)', '', text) # Remove parentheses
-                text = re.sub(r'\s+', ' ', text)      # Normalize spaces
-                
-                # Format response based on query type
-                if query_type == "person" and not text.lower().startswith(subject.lower()):
-                    text = f"{subject.title()} je " + text
-                elif query_type == "definition" and not text.lower().startswith(subject.lower()):
-                    text = f"{subject} je " + text
-                
-                return text[:500] + "..." if len(text) > 500 else text
-            
-        except requests.RequestException:
-            pass
-
-        # If direct Wikipedia lookup fails, try Wikipedia search
-        search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno:Traži"
-        response = requests.get(search_url, headers=headers)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            search_results = soup.find('div', class_='mw-search-result-heading')
-            
-            if search_results and search_results.find('a'):
-                article_url = "https://hr.wikipedia.org" + search_results.find('a')['href']
-                response = requests.get(article_url, headers=headers)
+            if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Get first valid paragraph
-                paragraphs = soup.find_all('p')
-                text = ""
-                
-                for p in paragraphs:
+                # Traži prvi značajan paragraf
+                for p in soup.find_all('p'):
+                    # Preskoči prazne paragrafe i one s koordinatama
                     if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
                         text = p.text.strip()
-                        break
+                        # Očisti tekst od referenci i zagrada
+                        text = re.sub(r'\[\d+\]', '', text)
+                        text = re.sub(r'\([^)]*\)', '', text)
+                        text = re.sub(r'\s+', ' ', text)
+                        
+                        # Dodaj "X je" ako ne počinje s traženim pojmom
+                        if not text.lower().startswith(subject.lower()):
+                            text = f"{subject} je " + text
+                        
+                        return text[:500] + "..." if len(text) > 500 else text
+                        
+            # Ako nema direktnog pogotka, probaj pretragu
+            search_url = f"https://hr.wikipedia.org/w/index.php?search={subject}&title=Posebno:Traži"
+            response = requests.get(search_url, headers={'User-Agent': 'Mozilla/5.0'})
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                result = soup.find('div', class_='mw-search-result-heading')
                 
-                if text:
-                    # Clean up text
-                    text = re.sub(r'\[\d+\]', '', text)
-                    text = re.sub(r'\([^)]*\)', '', text)
-                    text = re.sub(r'\s+', ' ', text)
+                if result and result.find('a'):
+                    article_url = "https://hr.wikipedia.org" + result.find('a')['href']
+                    response = requests.get(article_url, headers={'User-Agent': 'Mozilla/5.0'})
+                    soup = BeautifulSoup(response.text, 'html.parser')
                     
-                    # Format response based on query type
-                    if query_type == "person" and not text.lower().startswith(subject.lower()):
-                        text = f"{subject.title()} je " + text
-                    elif query_type == "definition" and not text.lower().startswith(subject.lower()):
-                        text = f"{subject} je " + text
-                    
-                    return text[:500] + "..." if len(text) > 500 else text
-
-        return f"Nažalost, ne mogu pronaći informacije o tome {'tko je' if query_type == 'person' else 'što je'} {subject}."
+                    for p in soup.find_all('p'):
+                        if len(p.text.strip()) > 50 and not p.find('span', class_='coordinates'):
+                            text = p.text.strip()
+                            text = re.sub(r'\[\d+\]', '', text)
+                            text = re.sub(r'\([^)]*\)', '', text)
+                            text = re.sub(r'\s+', ' ', text)
+                            
+                            if not text.lower().startswith(subject.lower()):
+                                text = f"{subject} je " + text
+                            
+                            return text[:500] + "..." if len(text) > 500 else text
+            
+            return f"Nažalost, ne mogu pronaći informacije o tome što je {subject}."
+        
+        return "Nisam razumio pitanje. Možete li preformulirati?"
 
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
