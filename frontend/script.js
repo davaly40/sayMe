@@ -1,30 +1,142 @@
+// State variables
 let recognition;
 let socket;
-const audioCircle = document.getElementById('audioCircle');
-let isSpeaking = false; // Add this at the top with other state variables
-let currentUtterance = null; // Track current speech utterance
-let isListening = false;
+const STOP_COMMANDS = ['stop', 'stani', 'dosta', 'nemoj više', 'prekini', 'ajde dosta', 'molim te prestani'];
+let isSpeaking = false;
+let currentUtterance = null;
 
-const STOP_COMMANDS = ['stop', 'stani', 'dosta', 'nemoj više', 'prekini'];
+// Main UI elements
+const startButton = document.getElementById('startButton');
+const audioCircle = document.querySelector('.audio-circle');
 
 function updateState(state) {
-    const circle = document.querySelector('.audio-circle');
-    if (!circle) return;
-
-    // Reset states
-    circle.classList.remove('listening', 'speaking', 'thinking');
+    if (!audioCircle) return;
     
-    // If we're speaking, only show speaking state, regardless of listening
-    if (isSpeaking) {
-        circle.classList.add('speaking');
-        return;
+    // Reset all states
+    audioCircle.classList.remove('listening', 'speaking', 'thinking');
+    
+    // Update button state
+    if (state === 'listening') {
+        startButton.classList.add('active');
+    } else {
+        startButton.classList.remove('active');
     }
-
-    // Otherwise show the current state
+    
+    // Add new state
     if (state) {
-        circle.classList.add(state);
+        audioCircle.classList.add(state);
     }
 }
+
+// Speaking functions
+function stopSpeaking() {
+    if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+    }
+    if (currentUtterance) {
+        currentUtterance = null;
+    }
+    isSpeaking = false;
+    updateState(null);
+}
+
+async function speak(text) {
+    if (typeof text !== 'string') return;
+    
+    stopSpeaking();
+    isSpeaking = true;
+    updateState('speaking');
+    
+    return new Promise((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        currentUtterance = utterance;
+        utterance.lang = 'hr-HR';
+        
+        utterance.onend = () => {
+            isSpeaking = false;
+            currentUtterance = null;
+            updateState(null);
+            resolve();
+        };
+        
+        utterance.onerror = () => {
+            isSpeaking = false;
+            currentUtterance = null;
+            updateState(null);
+            resolve();
+        };
+        
+        speechSynthesis.speak(utterance);
+    });
+}
+
+// Recognition functions
+async function initializeSpeechRecognition() {
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    try {
+        recognition = new window.SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'hr-HR';
+
+        recognition.onstart = () => {
+            updateState('listening');
+            console.log('Started listening');
+        };
+
+        recognition.onend = () => {
+            updateState(null);
+            startButton.classList.remove('active');
+        };
+
+        recognition.onresult = async function(event) {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log('Recognized:', transcript);
+            
+            // Handle stop commands only when speaking
+            if (isSpeaking && STOP_COMMANDS.some(cmd => transcript.includes(cmd))) {
+                stopSpeaking();
+                return;
+            }
+
+            // Process normal commands
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                updateState('thinking');
+                try {
+                    await socket.send(transcript);
+                } catch (err) {
+                    console.error('WebSocket send error:', err);
+                    updateState(null);
+                }
+            }
+        };
+
+    } catch (error) {
+        console.error('Recognition init error:', error);
+    }
+}
+
+// Button handler
+startButton.addEventListener('click', () => {
+    if (recognition) {
+        if (recognition.isStarted) {
+            recognition.stop();
+        } else {
+            recognition.start();
+        }
+    }
+});
+
+// Initialize on load
+window.addEventListener('load', async () => {
+    await initializeSpeechRecognition();
+    initializeWebSocket();
+});
+
+// ... rest of existing WebSocket and utility code ...
+
+let isListening = false;
 
 function appendMessage(text, isUser = false) {
     console.log(`${isUser ? 'User' : 'SayMe'}: ${text}`);
@@ -498,8 +610,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ...rest of your DOMContentLoaded code...
 });
 
-// ...existing code...
-
 function handleServerResponse(response) {
     try {
         const data = JSON.parse(response);
@@ -520,8 +630,6 @@ function handleServerResponse(response) {
         speak(response);
     }
 }
-
-// ...rest of the existing code...
 
 function updateVisualization(state) {
     const circle = document.querySelector('.audio-circle');
@@ -637,8 +745,6 @@ micButton.addEventListener('click', () => {
     }
 });
 
-// ...existing code...
-
 function stopSpeaking() {
     if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -685,5 +791,3 @@ function startBackgroundListening() {
         }
     };
 }
-
-// ...existing code...
