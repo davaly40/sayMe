@@ -258,6 +258,31 @@ COMMANDS: Dict[str, str] = {
     "namjesti budilicu": "U koje vrijeme želite alarm?",
 }
 
+CROATIAN_DAYS = {
+    'Monday': 'Ponedjeljak',
+    'Tuesday': 'Utorak',
+    'Wednesday': 'Srijeda',
+    'Thursday': 'Četvrtak',
+    'Friday': 'Petak',
+    'Saturday': 'Subota',
+    'Sunday': 'Nedjelja'
+}
+
+CROATIAN_MONTHS = {
+    'January': 'Siječnja',
+    'February': 'Veljače',
+    'March': 'Ožujka',
+    'April': 'Travnja',
+    'May': 'Svibnja',
+    'June': 'Lipnja',
+    'July': 'Srpnja',
+    'August': 'Kolovoza',
+    'September': 'Rujna',
+    'October': 'Listopada',
+    'November': 'Studenog',
+    'December': 'Prosinca'
+}
+
 COMMANDS.update({
     "koji je danas dan": lambda: get_date_info(),
     "koji je dan danas": lambda: get_date_info(),
@@ -436,43 +461,42 @@ def flexible_match(user_input: str, commands: Dict[str, str]) -> str:
 def search_web(query: str) -> str:
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
-        # Prvo probaj Wikipedia
+
+        # Prvo traži na hrvatskoj Wikipediji
         wiki_url = f"https://hr.wikipedia.org/wiki/{query.replace(' ', '_')}"
-        response = requests.get(wiki_url, headers=headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Traži glavni sadržaj na Wikipediji
-        content = soup.find('div', {'id': 'mw-content-text'})
-        if content:
-            paragraphs = content.find_all('p', recursive=False)
-            for p in paragraphs:
-                text = p.get_text().strip()
-                if len(text) > 50:
-                    return text[:500] + "..."
-        
+        wiki_response = requests.get(wiki_url, headers=headers)
+        if wiki_response.status_code == 200:
+            wiki_soup = BeautifulSoup(wiki_response.text, 'html.parser')
+            main_content = wiki_soup.find('div', {'class': 'mw-parser-output'})
+            if main_content:
+                paragraphs = main_content.find_all('p', recursive=False)
+                for p in paragraphs:
+                    text = p.get_text().strip()
+                    if len(text) > 50:  # Provjeravamo je li paragraf dovoljno dug
+                        return text[:500] + "..." if len(text) > 500 else text
+
         # Ako Wikipedia ne uspije, koristi Google
-        google_url = f"https://www.google.com/search?q={query}&hl=hr&lr=lang_hr"
-        response = requests.get(google_url, headers=headers)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Traži različite vrste Google rezultata
-        selectors = [
-            'div.BNeawe.s3v9rd.AP7Wnd',
-            'div.kp-header',
-            'div.LGOjhe',
-            'div.IZ6rdc'
-        ]
-        
-        for selector in selectors:
-            results = soup.select(selector)
-            for result in results:
-                text = result.get_text().strip()
-                if len(text) > 50:
-                    return text[:500] + "..."
-        
+        google_url = f"https://www.google.com/search?q={query}&hl=hr"
+        google_response = requests.get(google_url, headers=headers)
+        if google_response.status_code == 200:
+            google_soup = BeautifulSoup(google_response.text, 'html.parser')
+            
+            # Provjeri nekoliko mogućih lokacija za odgovor
+            possible_elements = [
+                google_soup.find('div', {'class': 'BNeawe s3v9rd AP7Wnd'}),
+                google_soup.find('div', {'class': 'kCrYT'}),
+                google_soup.find('div', {'class': 'Z0LcW'}),
+                google_soup.find('div', {'class': 'ILfuVd'}),
+            ]
+
+            for element in possible_elements:
+                if element:
+                    text = element.get_text().strip()
+                    if len(text) > 50:
+                        return text[:500] + "..." if len(text) > 500 else text
+
         return "Nažalost, ne mogu pronaći informacije o tome."
     except Exception as e:
         logger.error(f"Search error: {str(e)}")
@@ -662,13 +686,15 @@ def get_date_info(days_offset: int = 0) -> str:
     try:
         target_date = datetime.now() + timedelta(days=days_offset)
         
-        # Dobavi imena dana i mjeseca
+        # Dohvati imena dana i mjeseca na engleskom
         weekday_eng = target_date.strftime('%A')
         month_eng = target_date.strftime('%B')
         
+        # Pretvori u hrvatske nazive
         weekday = CROATIAN_DAYS.get(weekday_eng, weekday_eng).capitalize()
         month = CROATIAN_MONTHS.get(month_eng, month_eng)
         
+        # Formatiraj datum
         date_str = f"{target_date.day}. {month} {target_date.year}."
         
         if days_offset == 0:
@@ -679,48 +705,47 @@ def get_date_info(days_offset: int = 0) -> str:
             return f"Prekosutra je {weekday}, {date_str}"
         else:
             return f"U {weekday.lower()}, {date_str}"
+            
     except Exception as e:
         logger.error(f"Date info error: {str(e)}")
         return "Došlo je do greške pri dohvaćanju datuma."
 
 def get_day_offset(text: str) -> int:
-    text = text.lower().strip()
+    text = text.lower()
     
-    # Specifične riječi za dane
+    # Check specific keywords first
     if "prekosutra" in text:
         return 2
     elif "sutra" in text:
         return 1
     elif "danas" in text:
         return 0
-        
-    # Dani u tjednu
+
+    # Map Croatian days to numbers
     days_mapping = {
         'ponedjeljak': 0,
         'utorak': 1,
-        'srijeda': 2, 'srijedu': 2,
-        'četvrtak': 3, 'četvrtku': 3,
-        'petak': 4, 'petku': 4,
-        'subota': 5, 'subotu': 5,
-        'nedjelja': 6, 'nedjelju': 6
+        'srijeda': 2,
+        'srijedu': 2,
+        'četvrtak': 3,
+        'četvrtku': 3,
+        'petak': 4,
+        'petku': 4,
+        'subota': 5,
+        'subotu': 5,
+        'nedjelja': 6,
+        'nedjelju': 6
     }
-    
+
     current_weekday = datetime.now().weekday()
     
     for day, day_num in days_mapping.items():
         if day in text:
             days_until = (day_num - current_weekday) % 7
-            
-            # Ako se spominje "sljedeći" ili "idući", dodaj tjedan dana
-            if any(word in text for word in ["sljedeći", "slijedeći", "idući", "iduci"]):
-                if days_until <= 0:
-                    days_until += 7
-            elif days_until == 0:  # Ako je danas taj dan
-                if not any(word in text for word in ["danas", "trenutno", "sad"]):
-                    days_until = 7
-            
+            if days_until == 0 and not any(word in text for word in ["danas", "trenutno", "sad"]):
+                days_until = 7
             return days_until
-    
+
     return 0
 
 @app.websocket("/ws")
@@ -795,7 +820,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Provjeri je li pitanje za pretraživanje
                     elif any(text.startswith(prefix) for prefix in ["što je", "šta je", "tko je", "ko je"]):
                         query = ' '.join(text.split()[2:])  # Uzmi sve nakon "što je"/"tko je"
-                        response = search_web(query)
+                        if query:  # Provjeri da query nije prazan
+                            response = search_web(query)
+                        else:
+                            response = "Molim vas dopunite pitanje."
                     # Provjeri je li naredba za otvaranje
                     elif any(word in text for word in ["otvori", "upali", "pokreni"]):
                         site_name = text.split(text.split()[0], 1)[1].strip()
@@ -820,6 +848,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         ]):
                             days_offset = get_day_offset(text)
                             response = get_date_info(days_offset)
+                        elif text in COMMANDS:
+                            cmd = COMMANDS[text]
+                            if callable(cmd):  # Ako je funkcija
+                                response = cmd()
+                            else:  # Ako je string
+                                response = cmd
                         else:
                             response = flexible_match(text, COMMANDS)
                 
