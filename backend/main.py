@@ -15,6 +15,16 @@ from typing import Optional, Tuple
 from dataclasses import dataclass
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+import locale
+
+# Set locale for Croatian day and month names
+try:
+    locale.setlocale(locale.LC_TIME, 'hr_HR.UTF-8')
+except:
+    try:
+        locale.setlocale(locale.LC_TIME, 'Croatian.UTF-8')
+    except:
+        pass  # Fall back to default if Croatian locale isn't available
 
 # Set up logging
 logging.basicConfig(
@@ -247,6 +257,17 @@ COMMANDS: Dict[str, str] = {
     "navij alarm": "U koje vrijeme želite alarm?",
     "namjesti budilicu": "U koje vrijeme želite alarm?",
 }
+
+COMMANDS.update({
+    "koji je danas dan": lambda: get_date_info(),
+    "koji je dan danas": lambda: get_date_info(),
+    "koji je datum": lambda: get_date_info(),
+    "koji je datum danas": lambda: get_date_info(),
+    "koji je datum sutra": lambda: get_date_info(1),
+    "koji je dan sutra": lambda: get_date_info(1),
+    "koji će dan biti sutra": lambda: get_date_info(1),
+    "koji dan je sutra": lambda: get_date_info(1),
+})
 
 WEBSITES = {
     "youtube": "https://youtube.com",
@@ -520,9 +541,8 @@ def extract_city_and_time(text: str) -> Tuple[Optional[str], bool]:
             
     return None, is_tomorrow
 
-def get_weather_info(city: str, is_tomorrow: bool = False) -> str:
+def get_weather_info(city: str, days_offset: int = 0) -> str:
     try:
-        # Dohvati prognozu
         params = {
             "q": f"{city},HR",
             "appid": WEATHER_API_KEY,
@@ -536,19 +556,16 @@ def get_weather_info(city: str, is_tomorrow: bool = False) -> str:
         if response.status_code != 200:
             return "Nažalost, ne mogu dohvatiti vremensku prognozu trenutno."
             
-        # Odaberi današnju ili sutrašnju prognozu
-        forecast_list = data['list']
-        target_date = datetime.now() + timedelta(days=1) if is_tomorrow else datetime.now()
+        target_date = datetime.now() + timedelta(days=days_offset)
         target_date = target_date.date()
         
-        # Filtriraj prognoze za traženi dan
+        forecast_list = data['list']
         day_forecasts = [f for f in forecast_list 
                         if datetime.fromtimestamp(f['dt']).date() == target_date]
         
         if not day_forecasts:
             return "Ne mogu pronaći prognozu za traženi dan."
             
-        # Uzmi relevantnu prognozu (sredinu dana ili prvu dostupnu)
         forecast = next((f for f in day_forecasts 
                         if datetime.fromtimestamp(f['dt']).hour in [12, 13, 14]), 
                         day_forecasts[0])
@@ -557,9 +574,15 @@ def get_weather_info(city: str, is_tomorrow: bool = False) -> str:
         weather = forecast['weather'][0]['description']
         humidity = forecast['main']['humidity']
         
-        time_str = "sutra" if is_tomorrow else "danas"
+        # Get day name for the forecast
+        if days_offset == 0:
+            day_str = "danas"
+        elif days_offset == 1:
+            day_str = "sutra"
+        else:
+            day_str = target_date.strftime('%A').lower()
         
-        return (f"Vrijeme za {city.capitalize()} {time_str}: "
+        return (f"Vrijeme za {city.capitalize()} {day_str}: "
                 f"{weather}, temperatura {temp}°C, "
                 f"vlažnost zraka {humidity}%")
                 
@@ -622,6 +645,43 @@ def handle_alarm_request(text: str) -> str:
             })
     return "Nisam razumio vrijeme. Molim vas recite vrijeme u formatu 'HH:MM' ili 'u X sati'"
 
+def get_date_info(days_offset: int = 0) -> str:
+    target_date = datetime.now() + timedelta(days=days_offset)
+    weekday = target_date.strftime('%A').capitalize()  # Gets localized day name
+    date_str = target_date.strftime('%d. %B %Y.').capitalize()  # Gets localized month name
+    
+    if days_offset == 0:
+        return f"Danas je {weekday}, {date_str}"
+    elif days_offset == 1:
+        return f"Sutra je {weekday}, {date_str}"
+    else:
+        return f"Datum će biti {weekday}, {date_str}"
+
+def get_day_offset(text: str) -> int:
+    """Extract number of days offset from text"""
+    text = text.lower()
+    if "sutra" in text:
+        return 1
+    elif "prekosutra" in text:
+        return 2
+    
+    # Handle specific days of the week
+    days_mapping = {
+        'ponedjeljak': 0, 'ponedeljak': 0, 'utorak': 1, 'srijeda': 2, 'sreda': 2,
+        'četvrtak': 3, 'petak': 4, 'subota': 5, 'nedjelja': 6, 'nedelja': 6
+    }
+    
+    current_weekday = datetime.now().weekday()
+    
+    for day, offset in days_mapping.items():
+        if day in text:
+            target_offset = offset - current_weekday
+            if target_offset <= 0:  # If the day has passed this week, get next week
+                target_offset += 7
+            return target_offset
+            
+    return 0
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
@@ -678,9 +738,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         "hoće li padati kiša", "da li će padati kiša",
                         "kakva je prognoza", "kakvo vrijeme", "će daž", "vremenska prognoza",
                     ]):
-                        city, is_tomorrow = extract_city_and_time(text)
+                        city, _ = extract_city_and_time(text)
+                        days_offset = get_day_offset(text)
+                        
                         if city:
-                            response = get_weather_info(city, is_tomorrow)
+                            response = get_weather_info(city, days_offset)
                         else:
                             state.waiting_for_city = True
                             state.last_query_type = "weather"
@@ -711,6 +773,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         elif any(cmd in text for cmd in ["probudi me", "navij alarm", "namjesti budilicu"]):
                             state.waiting_for_alarm_time = True
                             response = "U koje vrijeme želite alarm?"
+                        elif any(phrase in text for phrase in [
+                            "koji je dan", "koji je datum",
+                            "koji će dan biti", "koji dan je"
+                        ]):
+                            days_offset = get_day_offset(text)
+                            response = get_date_info(days_offset)
                         else:
                             response = flexible_match(text, COMMANDS)
                 
