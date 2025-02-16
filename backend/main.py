@@ -719,6 +719,12 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 text = await websocket.receive_text()
+                
+                # Check if this is an interrupt signal
+                if text == "__interrupt__":
+                    logger.info("Received interrupt signal")
+                    continue
+                    
                 logger.info(f"Received command: {text}")
                 
                 text = text.lower().strip()

@@ -1,6 +1,8 @@
 let recognition;
 let socket;
 const audioCircle = document.getElementById('audioCircle');
+let isSpeaking = false; // Add this at the top with other state variables
+let currentUtterance = null; // Track current speech utterance
 
 function updateState(state) {
     updateVisualization(state);
@@ -517,3 +519,69 @@ function createSpectrumBars() {
 window.addEventListener('load', () => {
     createSpectrumBars();
 });
+
+function stopCurrentSpeech() {
+    if (currentUtterance) {
+        speechSynthesis.cancel();
+        currentUtterance = null;
+    }
+    isSpeaking = false;
+}
+
+function speakText(text) {
+    return new Promise((resolve) => {
+        if (typeof text !== 'string') {
+            console.error('Invalid text for speech:', text);
+            resolve();
+            return;
+        }
+
+        stopCurrentSpeech(); // Stop any existing speech
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        currentUtterance = utterance;
+        isSpeaking = true;
+
+        // Configure speech settings
+        utterance.lang = 'hr-HR';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onend = () => {
+            isSpeaking = false;
+            currentUtterance = null;
+            resolve();
+        };
+
+        utterance.onerror = () => {
+            isSpeaking = false;
+            currentUtterance = null;
+            resolve();
+        };
+
+        speechSynthesis.speak(utterance);
+    });
+}
+
+// Modify the startListening function
+function startListening() {
+    if (!recognition) return;
+
+    stopCurrentSpeech(); // Stop any current speech when mic button is pressed
+    
+    // Reset UI states
+    micButton.classList.add('listening');
+    outputText.textContent = '';
+    recognition.start();
+}
+
+// Modify the micButton click handler
+micButton.addEventListener('click', () => {
+    if (recognition.isStarted) {
+        stopListening();
+    } else {
+        startListening();
+    }
+});
+
+// ...existing code...
