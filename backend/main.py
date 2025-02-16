@@ -286,14 +286,6 @@ COMMANDS.update({
     "koji dan je sutra": lambda: get_date_info(1),
 })
 
-COMMANDS.update({
-    "stop": "U redu, prestajem.",
-    "stani": "U redu, prestajem.",
-    "dosta": "U redu, prestajem.",
-    "nemoj više": "U redu, prestajem.",
-    "prekini": "U redu, prestajem.",
-})
-
 WEBSITES = {
     "youtube": "https://youtube.com",
     "facebook": "https://facebook.com",
@@ -727,12 +719,6 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             try:
                 text = await websocket.receive_text()
-                
-                # Check if this is an interrupt signal
-                if text == "__interrupt__":
-                    logger.info("Received interrupt signal")
-                    continue
-                    
                 logger.info(f"Received command: {text}")
                 
                 text = text.lower().strip()
