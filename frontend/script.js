@@ -634,3 +634,68 @@ recognition.onresult = async function(event) {
 };
 
 // ...existing code...
+
+async function handleMusicChoice(data) {
+    // Prikaži opcije korisniku i čekaj odgovor
+    appendMessage(data.message, false);
+    
+    // Nastavi slušati korisnikov govor za odabir
+    if (recognition) {
+        recognition.start();
+    }
+}
+
+// Modificiraj postojeći socket.onmessage handler
+socket.onmessage = async function(event) {
+    try {
+        const data = JSON.parse(event.data);
+        
+        switch(data.type) {
+            case "openUrl":
+                handleUrlOpen(data);
+                appendMessage(data.message, false);
+                break;
+            case "musicChoice":
+                handleMusicChoice(data);
+                appendMessage(data.message, false);
+                break;
+            default:
+                const response = formatResponse(data.message || event.data);
+                appendMessage(response, false);
+                await speak(response);
+        }
+    } catch (e) {
+        const response = formatResponse(event.data);
+        appendMessage(response, false);
+        await speak(response);
+    }
+};
+
+// Modificiraj handleUrlOpen funkciju da bolje rukuje glazbenim aplikacijama
+async function handleUrlOpen(data) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile && data.mobileUrl) {
+        // Pokušaj otvoriti nativnu aplikaciju
+        try {
+            // Prvo pokušaj otvoriti u aplikaciji
+            window.location.href = data.mobileUrl;
+            
+            // Ako nakon 1 sekunde još uvijek nismo preusmjereni, 
+            // vjerojatno aplikacija nije instalirana
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    window.location.href = data.url;
+                }
+            }, 1000);
+        } catch (e) {
+            // Ako ne uspije, otvori web verziju
+            window.location.href = data.url;
+        }
+    } else {
+        // Na desktopu otvori u novom tabu
+        window.open(data.url, '_blank');
+    }
+}
+
+// ...rest of the existing code...

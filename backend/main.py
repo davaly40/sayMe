@@ -926,6 +926,45 @@ async def process_weather_query(text: str, state: ConversationState) -> str:
         )
         return "Za koji grad želite znati vremensku prognozu?"
 
+MUSIC_APPS = {
+    "spotify": {
+        "mobile": "spotify://playlist/37i9dQZF1DXcBWIGoYBM5M",  # Today's Top Hits
+        "web": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+    },
+    "youtube": {
+        "mobile": "vnd.youtube://playlist/PLw-VjHDlEOgs658kAHR_LAaILBXb-s6Q5",  # Popular Music
+        "web": "https://www.youtube.com/playlist?list=PLw-VjHDlEOgs658kAHR_LAaILBXb-s6Q5"
+    }
+}
+
+MUSIC_TRIGGERS = [
+    "pusti glazbu", "pusti muziku", "upali glazbu", "upali muziku",
+    "sviraj nešto", "sviraj pjesme", "pokreni glazbu", "pokreni muziku"
+]
+
+def handle_music_command(text: str = "") -> str:
+    """Handle music related commands"""
+    if any(platform in text.lower() for platform in ["spotify", "jutub", "youtube"]):
+        platform = "spotify" if "spotify" in text.lower() else "youtube"
+        urls = MUSIC_APPS[platform]
+        return json.dumps({
+            "type": "openUrl",
+            "url": urls["web"],
+            "mobileUrl": urls["mobile"],
+            "message": f"Pokrećem glazbu na {platform.title()}"
+        })
+    
+    # Ako platforma nije specificirana, pitaj korisnika
+    return json.dumps({
+        "type": "musicChoice",
+        "message": "Gdje želite slušati glazbu - Spotify ili YouTube?",
+        "options": ["Spotify", "YouTube"]
+    })
+
+# Dodaj u COMMANDS dictionary
+for trigger in MUSIC_TRIGGERS:
+    COMMANDS[trigger] = lambda: handle_music_command()
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     try:
@@ -1012,6 +1051,10 @@ async def websocket_endpoint(websocket: WebSocket):
                             response = cmd()
                         else:
                             response = cmd
+                    elif any(trigger in text.lower() for trigger in MUSIC_TRIGGERS):
+                        response = handle_music_command(text)
+                    elif "spotify" in text.lower() or "youtube" in text.lower():
+                        response = handle_music_command(text)
                     else:
                         is_navigation = False
                         destination = ""
@@ -1061,4 +1104,5 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), log_level="info")
+``` 
 
