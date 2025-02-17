@@ -107,7 +107,10 @@ async function initializeSpeechRecognition() {
             appendMessage(command, true);
             updateState('thinking');
             
-            if (socket && socket.readyState === WebSocket.OPEN) {
+            // Provjeri je li vremenska prognoza
+            if (command.match(/kakvo.*(vrijeme|prognoza|temperatura)/i)) {
+                await handleWeatherRequest(command);
+            } else if (socket && socket.readyState === WebSocket.OPEN) {
                 try {
                     await socket.send(command);
                 } catch (err) {
@@ -517,3 +520,82 @@ function createSpectrumBars() {
 window.addEventListener('load', () => {
     createSpectrumBars();
 });
+
+// ...existing code...
+
+async function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject('Geolokacija nije podržana');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                resolve({
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                });
+            },
+            (error) => {
+                reject(error.message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    });
+}
+
+async function handleWeatherRequest(command) {
+    try {
+        // Pokušaj dobiti lokaciju samo ako nije specificiran grad
+        if (!command.match(/\b(u|za)\s+[a-zčćđšž]+/i)) {
+            try {
+                const location = await getCurrentLocation();
+                command = `${command} at ${location.lat},${location.lon}`;
+            } catch (error) {
+                console.log('Nije moguće dobiti lokaciju:', error);
+            }
+        }
+        
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            await socket.send(command);
+        }
+    } catch (error) {
+        console.error('Error handling weather request:', error);
+    }
+}
+
+// Modificiraj postojeći recognition.onresult handler
+recognition.onresult = async function(event) {
+    const command = event.results[0][0].transcript.toLowerCase();
+    console.log('Recognized:', command);
+    
+    // Dodaj vizualnu povratnu informaciju
+    const button = document.getElementById('startButton');
+    button.style.background = 'rgba(255, 255, 255, 0.2)';
+    setTimeout(() => button.style.background = '', 200);
+    
+    appendMessage(command, true);
+    updateState('thinking');
+    
+    // Provjeri je li vremenska prognoza
+    if (command.match(/kakvo.*(vrijeme|prognoza|temperatura)/i)) {
+        await handleWeatherRequest(command);
+    } else if (socket && socket.readyState === WebSocket.OPEN) {
+        try {
+            await socket.send(command);
+        } catch (err) {
+            console.error('WebSocket send error:', err);
+            alert('Greška u komunikaciji. Molimo osvježite stranicu.');
+        }
+    } else {
+        appendMessage("Nije moguće poslati poruku. Server nije dostupan.", false);
+        updateState(null);
+    }
+};
+
+// ...existing code...

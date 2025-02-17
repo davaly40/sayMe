@@ -337,6 +337,26 @@ COMMANDS: Dict[str, str] = {
     "ne vjerujem ti": "Žao mi je zbog toga.",
     "ne vjerujem": "Žao mi je zbog toga.",
 
+    "broj za hitnu pomoć": "Broj za hitnu pomoć je 112.",
+    "broj za htinu": "Broj za hitnu pomoć je 112.",
+    "broj za policiju": "Broj za policiju je 192.",
+    "broj za vatrogasce": "Broj za vatrogasce je 193.",
+    "broj za hitne službe": "Broj za hitne službe je 112.",
+    "pomoć na cesti": "Broj za pomoć na cesti je 1987.",
+    "auto mi je u kvaru": "Nazovite 1987 za pomoć na cesti.",
+    "auto mi je pokvaren": "Nazovite 1987 za pomoć na cesti.",
+    "treba mi hitna pomoć": "Nazovite 112.",
+    "treba mi policija": "Nazovite 192.",
+    "trebaju mi vatrogasci": "Nazovite 193.",
+    "izgubljen sam": "Nazovite 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "izgubljena sam": "Nazovite 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "izgubljeni smo": "Nazovite 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "izgubljene smo": "Nazovite 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "izgubio sam se": "Nazovite 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "ne znam di sam": "Najbolje bi bilo da nazovete 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "ne znam gdje sam": "Najbolje bi bilo da nazovete 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+    "ne znam gdje se nalazim": "Najbolje bi bilo da nazovete 112 za policiju. Ili nazovite 195 za službu traženja i spašavanja.",
+
 }
 
 CROATIAN_DAYS = {
@@ -501,9 +521,18 @@ CITY_NAMES = {
 }
 
 @dataclass
+class WeatherContext:
+    asking_for_city: bool = False
+    original_query: str = ""
+    day_offset: int = 0
+    specified_day: str = ""
+
+# Dodajte u postojeći ConversationState
+@dataclass
 class ConversationState:
     waiting_for_city: bool = False
     last_query_type: Optional[str] = None
+    weather_context: Optional[WeatherContext] = None
 
 conversation_states: Dict[str, ConversationState] = {}
 
@@ -826,6 +855,87 @@ NAVIGATION_TRIGGERS = {
     "navigiraj do": "navigate",
     "vodi me do": "navigate",
 }
+
+def parse_weather_query(text: str) -> Tuple[Optional[str], int, str]:
+    text = text.lower()
+    city = None
+    day_offset = 0
+    specified_day = ""
+    
+    # Provjeri specificiran grad
+    for city_variant in CITY_NAMES.keys():
+        if f" u {city_variant}" in text or f" za {city_variant}" in text:
+            city = CITY_NAMES[city_variant]
+            break
+    
+    # Provjeri je li koordinate
+    coords_match = re.search(r'at ([-\d.]+),([-\d.]+)', text)
+    if coords_match:
+        lat, lon = coords_match.groups()
+        try:
+            # Dodaj kod za reverse geocoding da dobiješ ime grada iz koordinata
+            city = get_city_from_coords(float(lat), float(lon))
+        except Exception as e:
+            logger.error(f"Error getting city from coordinates: {e}")
+    
+    # Provjeri vrijeme
+    if "sutra" in text:
+        day_offset = 1
+    elif "prekosutra" in text:
+        day_offset = 2
+    else:
+        for day, offset in days_mapping.items():
+            if day in text:
+                specified_day = day
+                current_weekday = datetime.now().weekday()
+                day_offset = (offset - current_weekday) % 7
+                if day_offset == 0:
+                    day_offset = 7
+                break
+    
+    return city, day_offset, specified_day
+
+def get_city_from_coords(lat: float, lon: float) -> Optional[str]:
+    try:
+        url = f"http://api.openweathermap.org/geo/1.0/reverse?lat={lat}&lon={lon}&limit=1&appid={WEATHER_API_KEY}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if data and len(data) > 0:
+                return data[0]['name']
+    except Exception as e:
+        logger.error(f"Reverse geocoding error: {e}")
+    return None
+
+async def process_weather_query(text: str, state: ConversationState) -> str:
+    if state.weather_context and state.weather_context.asking_for_city:
+        # Korisnik odgovara na pitanje za grad
+        city = None
+        for city_variant in CITY_NAMES.keys():
+            if city_variant in text.lower():
+                city = CITY_NAMES[city_variant]
+                break
+        
+        if city:
+            state.weather_context.asking_for_city = False
+            return get_weather_info(city, state.weather_context.day_offset)
+        else:
+            return "Nisam prepoznao grad. Molim vas navedite neki hrvatski grad."
+    
+    # Novi vremenski upit
+    city, day_offset, specified_day = parse_weather_query(text)
+    
+    if not city:
+        # Spremi kontekst i pitaj za grad
+        state.weather_context = WeatherContext(
+            asking_for_city=True,
+            original_query=text,
+            day_offset=day_offset,
+            specified_day=specified_day
+        )
+        return "Za koji grad želite znati vremensku prognozu?"
+    
+    return get_weather_info(city, day_offset)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
