@@ -76,11 +76,34 @@ COMMANDS: Dict[str, str] = {
     "ko je se i mi": "Ja sam sejMi, hahaha šalim se, sejMi je tim developera iz Hrvatske.",
     "ko te napravio": "Napravio me je tim sejMi iz Hrvatske.",
     "tko te je stvorio": "Stvorio me je tim sejMi iz Hrvatske.",
+    "moje ime je": "Drago mi je upoznati te, kako ti mogu pomoći?",
+    "koje je moje ime": "Na žalosat nemam mogućnost pamtiti imena korisnika",
+    "uzimaš li moje podatke": "Ne, ne uzimam podatke korisnika.",
+    "uzimaš li podatke": "Ne, ne uzimam podatke korisnika.",
+    "uzimaš li moje osobne podatke": "Ne, ne uzimam osobne podatke korisnika.",
+    "jesi li siguran": "Da, siguran sam.",
+    "jesi li sigurna": "Da, sigurna sam.",
+    "jesi li siguran za korištenje": "Da, ne koristim tvoje podatke s toga sam potpuno siguran za korištenje.",
+    "jesi li sigurna za korištenje": "Da, ne koristim tvoje podatke s toga sam potpuno sigurna za korištenje.",
+    "kako koristiš moje podatke": "Ne koristim tvoje osobne podatke.",
+    "prikupljaš li podatke": "Ne, ne prikupljam podatke korisnika.",
+    "prikupljaš li moje podatke": "Ne, ne prikupljam podatke korisnika.",
+
+    "nazovi": "Nažalost, još nemam mogućnost zvanja.",
+    "pozovi": "Nažalost, još nemam mogućnost zvanja.",
+    "pošalji poruku": "Nažalost, još nemam mogućnost slanja poruka.",
+    "pošalji sms": "Nažalost, još nemam mogućnost slanja poruka.",
+    "pošalji mail": "Nažalost, još nemam mogućnost slanja mailova.",
+    "pošalji e-mail": "Nažalost, još nemam mogućnost slanja mailova.",
+
+    
+
+
 
     "kako ti funkcioniraš": "Ja sam glasovni asistent koji koristi umjetnu inteligenciju za komunikaciju s tobom.",
     "kako ti radiš": "Uglavnom prikupljam podatke na temelju tvojih upita, analiziram ih i dajem odgovor.",
-    "kako radiš": "Radim na principu umjetne inteligencije i obrade prirodnog jezika.",
-    "zašto baš Noa": "Tvorci su mi dali ime, morat ćeš pitati njih!",
+    "kako radiš": "Radim na principu glasovnih naredbi i prikupljanja dostupnih podataka u svrhu generiranja odgovora.",
+    "zašto baš noa": "Tvorci su mi dali ime, morat ćeš pitati njih!",
 
     "kako te mogu koristiti": "Možeš me koristiti na razne načine, mogu otvarati web stranice i aplikacije na tvom uređaju, mogu ti reći vremensku prognozu, koji je dan i sat, ili jednostavno odgovarati na tvoja pitanja",
     "kako te koristiti": "Možeš me koristiti na razne načine, mogu otvarati web stranice i aplikacije na tvom uređaju, mogu ti reći vremensku prognozu, koji je dan i sat, ili jednostavno odgovarati na tvoja pitanja",
@@ -101,6 +124,7 @@ COMMANDS: Dict[str, str] = {
     "za što služiš": "Služim za pomoć ljudima.",
     "za što si tu": "Tu sam da vam pomognem.",
     "za šta si tu": "Tu sam da vam pomognem.",
+    "čemu služiš": "Služim za pomoć ljudima u njihovoj svakodnevnici.",
     "koja je tvoja svrha": "Olakšati tvoju svakodnevnicu.",
     "koja je tvoja funkcija": "Trudim se olakšati tvoju svakodnevnicu.",
     "koja je tvoja uloga": "Moja uloga je olakšati tvoju svakodnevnicu.",
