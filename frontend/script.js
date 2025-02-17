@@ -203,19 +203,53 @@ async function initializeWebSocket() {
     }
 }
 
+async function tryOpenApp(urls) {
+    // Napravi nevidljivi iframe za pokušaj otvaranja aplikacije
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    for (const url of urls) {
+        try {
+            // Pokušaj otvoriti aplikaciju
+            iframe.src = url;
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Ako smo došli do ovdje, vjerojatno je aplikacija otvorena
+            return true;
+        } catch (e) {
+            console.log('Failed to open app:', e);
+        }
+    }
+    
+    // Ukloni iframe
+    document.body.removeChild(iframe);
+    return false;
+}
+
 function handleUrlOpen(data) {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
-    if (isMobile && data.mobileUrl) {
-        // Prvo pokušaj otvoriti nativnu aplikaciju
+    if (isMobile && data.mobileUrls) {
+        // Ako su dostupni mobilni URL-ovi (za navigaciju)
+        const urls = Object.values(data.mobileUrls);
+        
+        // Pokušaj otvoriti dostupne navigacijske aplikacije
+        tryOpenApp(urls).then(success => {
+            if (!success) {
+                // Ako nije uspjelo otvaranje aplikacija, otvori web verziju
+                window.location.href = data.url;
+            }
+        });
+    } else if (isMobile && data.mobileUrl) {
+        // Za ostale mobilne aplikacije (postojeća logika)
         window.location.href = data.mobileUrl;
         
-        // Ako nativna aplikacija nije instalirana, otvori web verziju nakon 1 sekunde
         setTimeout(() => {
             window.location.href = data.url;
         }, 1000);
     } else {
-        // Na desktopu otvori Google Maps u novom tabu
+        // Na desktopu otvori u novom tabu
         window.open(data.url, '_blank');
     }
 }

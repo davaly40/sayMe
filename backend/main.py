@@ -827,19 +827,26 @@ def get_day_offset(text: str) -> int:
     return 0
 
 def generate_maps_url(destination: str, mode: str = 'navigate') -> str:
+    """Generate navigation URLs with preference for mobile apps"""
     # Očisti i formatiraj destinaciju
     destination = destination.strip().replace(' ', '+')
     
-    # Desktop URL
-    web_url = f"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=driving"
+    # Mobile URLs za različite platforme
+    mobile_urls = {
+        'google': f"comgooglemaps://?daddr={destination}&directionsmode=driving",
+        'waze': f"waze://?q={destination}&navigate=yes",
+        'apple': f"maps://?daddr={destination}&dirflg=d",
+        'here': f"here-location://{destination}",
+        'osmand': f"osmand.geo:q={destination}"
+    }
     
-    # Mobile URL (za otvaranje Google Maps aplikacije)
-    mobile_url = f"comgooglemaps://?daddr={destination}&directionsmode=driving"
+    # Web fallback URL
+    web_url = f"https://www.google.com/maps/dir/?api=1&destination={destination}&travelmode=driving"
     
     return json.dumps({
         "type": "openUrl",
-        "url": web_url,
-        "mobileUrl": mobile_url,
+        "url": web_url,  # fallback za desktop
+        "mobileUrls": mobile_urls,  # lista svih mobilnih URL-ova
         "message": f"Otvaram navigaciju do lokacije: {destination.replace('+', ' ')}"
     })
 
@@ -1054,3 +1061,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), log_level="info")
+``` 
