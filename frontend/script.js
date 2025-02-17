@@ -555,7 +555,8 @@ async function handleWeatherRequest(command) {
         if (!command.match(/\b(u|za)\s+[a-zčćđšž]+/i)) {
             try {
                 const location = await getCurrentLocation();
-                command = `${command} at ${location.lat},${location.lon}`;
+                // Promijenjeno formatiranje - dodajemo "coords:" prefix
+                command = `${command} coords:${location.lat},${location.lon}`;
             } catch (error) {
                 console.log('Nije moguće dobiti lokaciju:', error);
             }

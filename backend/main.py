@@ -856,44 +856,26 @@ NAVIGATION_TRIGGERS = {
     "vodi me do": "navigate",
 }
 
-def parse_weather_query(text: str) -> Tuple[Optional[str], int, str]:
-    text = text.lower()
-    city = None
-    day_offset = 0
-    specified_day = ""
+def parse_weather_query(text: str) -> Tuple[Optional[str], int]:
+    """Parse weather query and return (city, days_offset)"""
+    text = text.lower().strip()
     
-    # Provjeri specificiran grad
-    for city_variant in CITY_NAMES.keys():
-        if f" u {city_variant}" in text or f" za {city_variant}" in text:
-            city = CITY_NAMES[city_variant]
-            break
-    
-    # Provjeri je li koordinate
-    coords_match = re.search(r'at ([-\d.]+),([-\d.]+)', text)
+    # Provjeri koordinate
+    coords_match = re.search(r'coords:([-\d.]+),([-\d.]+)', text)
     if coords_match:
         lat, lon = coords_match.groups()
         try:
-            # Dodaj kod za reverse geocoding da dobiješ ime grada iz koordinata
-            city = get_city_from_coords(float(lat), float(lon))
+            return get_city_from_coords(float(lat), float(lon)), get_day_offset(text)
         except Exception as e:
             logger.error(f"Error getting city from coordinates: {e}")
-    
-    # Provjeri vrijeme
-    if "sutra" in text:
-        day_offset = 1
-    elif "prekosutra" in text:
-        day_offset = 2
-    else:
-        for day, offset in days_mapping.items():
-            if day in text:
-                specified_day = day
-                current_weekday = datetime.now().weekday()
-                day_offset = (offset - current_weekday) % 7
-                if day_offset == 0:
-                    day_offset = 7
-                break
-    
-    return city, day_offset, specified_day
+            return None, 0
+
+    # Provjeri specificiran grad
+    for city_variant in CITY_NAMES.keys():
+        if f" u {city_variant}" in text or f" za {city_variant}" in text:
+            return CITY_NAMES[city_variant], get_day_offset(text)
+            
+    return None, get_day_offset(text)
 
 def get_city_from_coords(lat: float, lon: float) -> Optional[str]:
     try:
@@ -908,8 +890,9 @@ def get_city_from_coords(lat: float, lon: float) -> Optional[str]:
     return None
 
 async def process_weather_query(text: str, state: ConversationState) -> str:
+    """Process weather query"""
+    # Ako korisnik odgovara na pitanje za grad
     if state.weather_context and state.weather_context.asking_for_city:
-        # Korisnik odgovara na pitanje za grad
         city = None
         for city_variant in CITY_NAMES.keys():
             if city_variant in text.lower():
@@ -923,19 +906,18 @@ async def process_weather_query(text: str, state: ConversationState) -> str:
             return "Nisam prepoznao grad. Molim vas navedite neki hrvatski grad."
     
     # Novi vremenski upit
-    city, day_offset, specified_day = parse_weather_query(text)
+    city, days_offset = parse_weather_query(text)
     
-    if not city:
+    if city:
+        return get_weather_info(city, days_offset)
+    else:
         # Spremi kontekst i pitaj za grad
         state.weather_context = WeatherContext(
             asking_for_city=True,
             original_query=text,
-            day_offset=day_offset,
-            specified_day=specified_day
+            day_offset=days_offset
         )
         return "Za koji grad želite znati vremensku prognozu?"
-    
-    return get_weather_info(city, day_offset)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
