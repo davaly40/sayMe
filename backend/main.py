@@ -928,12 +928,12 @@ async def process_weather_query(text: str, state: ConversationState) -> str:
 
 MUSIC_APPS = {
     "spotify": {
-        "mobile": "spotify://playlist/37i9dQZF1DXcBWIGoYBM5M",  # Today's Top Hits
-        "web": "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+        "mobile": "spotify://browse",  # Otvara glavni ekran Spotify-a
+        "web": "https://open.spotify.com"
     },
     "youtube": {
-        "mobile": "vnd.youtube://playlist/PLw-VjHDlEOgs658kAHR_LAaILBXb-s6Q5",  # Popular Music
-        "web": "https://www.youtube.com/playlist?list=PLw-VjHDlEOgs658kAHR_LAaILBXb-s6Q5"
+        "mobile": "vnd.youtube://",  # Otvara glavni ekran YouTube-a
+        "web": "https://youtube.com"
     }
 }
 
@@ -944,22 +944,26 @@ MUSIC_TRIGGERS = [
 
 def handle_music_command(text: str = "") -> str:
     """Handle music related commands"""
-    if any(platform in text.lower() for platform in ["spotify", "jutub", "youtube"]):
-        platform = "spotify" if "spotify" in text.lower() else "youtube"
-        urls = MUSIC_APPS[platform]
+    text = text.lower()
+    
+    # Ako je korisnik već specificirao platformu
+    if "spotify" in text:
         return json.dumps({
             "type": "openUrl",
-            "url": urls["web"],
-            "mobileUrl": urls["mobile"],
-            "message": f"Pokrećem glazbu na {platform.title()}"
+            "url": MUSIC_APPS["spotify"]["web"],
+            "mobileUrl": MUSIC_APPS["spotify"]["mobile"],
+            "message": "Otvaram Spotify"
+        })
+    elif any(word in text for word in ["youtube", "jutub"]):
+        return json.dumps({
+            "type": "openUrl",
+            "url": MUSIC_APPS["youtube"]["web"],
+            "mobileUrl": MUSIC_APPS["youtube"]["mobile"],
+            "message": "Otvaram YouTube"
         })
     
-    # Ako platforma nije specificirana, pitaj korisnika
-    return json.dumps({
-        "type": "musicChoice",
-        "message": "Gdje želite slušati glazbu - Spotify ili YouTube?",
-        "options": ["Spotify", "YouTube"]
-    })
+    # Ako nije specificirana platforma, pitaj
+    return "Želite li slušati na Spotifyu ili YouTubeu?"
 
 # Dodaj u COMMANDS dictionary
 for trigger in MUSIC_TRIGGERS:
@@ -1053,7 +1057,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             response = cmd
                     elif any(trigger in text.lower() for trigger in MUSIC_TRIGGERS):
                         response = handle_music_command(text)
-                    elif "spotify" in text.lower() or "youtube" in text.lower():
+                    elif text.lower() in ["spotify", "jutub", "youtube"]:
                         response = handle_music_command(text)
                     else:
                         is_navigation = False
@@ -1104,5 +1108,6 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), log_level="info")
+
 
 

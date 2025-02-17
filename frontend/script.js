@@ -168,18 +168,20 @@ async function initializeWebSocket() {
         
         socket.onmessage = async function(event) {
             try {
+                // Prvo pokušaj parsirati kao JSON
                 const data = JSON.parse(event.data);
-                if (data.type === 'openUrl') {
+                if (data.type === "openUrl") {
                     handleUrlOpen(data);
                     appendMessage(data.message, false);
+                    await speak(data.message);
                     return;
                 }
             } catch (e) {
-                appendMessage(event.data, false);
+                // Ako nije JSON, tretiraj kao običan tekst
+                const response = formatResponse(event.data);
+                appendMessage(response, false);
+                await speak(response);
             }
-            const response = formatResponse(event.data);
-            appendMessage(response, false);
-            await speak(response);
         };
         
         socket.onerror = function(error) {
